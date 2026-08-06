@@ -27,7 +27,8 @@ The script is safe to re-run for structure creation and reference roles/units. I
 | Recipe quality | servings, cost, ingredient quantity, ordered steps | Required fields and friendly validation |
 | Meal calendar | unique plan/week and meal/date/slot | Ensure dates belong to selected week |
 | Shopping and budget | non-negative costs; purchase timestamp consistency | Aggregate equivalent ingredient/unit rows |
-| Ratings, reports, relationships | foreign keys, range checks, composite keys | Enforce permissions by user role |
+| Ratings and relationships | foreign keys, range checks, composite keys | Enforce permissions by user role |
+| Report review state | Exactly one reported target is enforced by a `CHECK` | Require reviewer and review time when resolving or dismissing |
 
 ## This week's database work
 

@@ -312,7 +312,6 @@ CREATE TABLE IF NOT EXISTS content_reports (
   CONSTRAINT fk_reports_comment FOREIGN KEY (recipe_comment_id) REFERENCES recipe_comments(recipe_comment_id) ON DELETE CASCADE,
   CONSTRAINT fk_reports_reviewer FOREIGN KEY (reviewed_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
   CONSTRAINT ck_reports_subject CHECK ((recipe_id IS NOT NULL) <> (recipe_comment_id IS NOT NULL)),
-  CONSTRAINT ck_reports_review CHECK ((status IN ('open', 'reviewing') AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR (status IN ('resolved', 'dismissed') AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)),
   KEY idx_reports_status_created (status, created_at)
 ) ENGINE=InnoDB;
 
