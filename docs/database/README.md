@@ -8,9 +8,15 @@
 
 1. Install MySQL 8.0.16 or later.
 2. Run `mysql -u <user> -p < database/master_schema.sql` from the repository root.
-3. Verify the result with `USE unimeal_planner; SHOW TABLES;`.
+3. Run `mysql -u <user> -p unimeal_planner < database/sample_data.sql` to load development data.
+4. Run `mysql -u <user> -p unimeal_planner < database/validation_queries.sql`.
+5. Verify that all returned validation rows have `PASS` status.
 
 The script is safe to re-run for structure creation and reference roles/units. It does not drop existing project data.
+
+`sample_data.sql` is for local development and testing only. It uses `@unimeal.test` accounts and placeholder bcrypt-formatted hashes; never use these accounts or hashes in production.
+
+`validation_queries.sql` deliberately attempts invalid operations inside SQL exception handlers. It returns one row for each database rule; every result must be `PASS` before backend integration.
 
 ## Validation ownership
 
