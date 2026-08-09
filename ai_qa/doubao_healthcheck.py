@@ -80,6 +80,22 @@ def request_completion(config: Mapping[str, str]) -> str:
     return content
 
 
+def describe_http_error(error: HTTPError) -> str:
+    """Return a compact server error description without echoing request secrets."""
+    try:
+        payload = json.loads(error.read().decode("utf-8"))
+        detail = payload.get("error", payload)
+        code = detail.get("code") or detail.get("Code")
+        message = detail.get("message") or detail.get("Message")
+        if code and message:
+            return f"HTTP {error.code} ({code}: {message})"
+        if code:
+            return f"HTTP {error.code} ({code})"
+    except (AttributeError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+        pass
+    return f"HTTP {error.code}"
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
     try:
@@ -89,7 +105,7 @@ def main() -> int:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 2
     except HTTPError as error:
-        print(f"API error: HTTP {error.code}. Check the key, model, and endpoint.", file=sys.stderr)
+        print(f"API error: {describe_http_error(error)}. Check the key, model, and endpoint.", file=sys.stderr)
         return 3
     except URLError as error:
         print(f"Network error: {error.reason}", file=sys.stderr)

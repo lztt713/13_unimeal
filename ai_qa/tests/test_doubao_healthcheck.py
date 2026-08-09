@@ -1,6 +1,8 @@
+import io
 import unittest
+from urllib.error import HTTPError
 
-from ai_qa.doubao_healthcheck import DEFAULT_BASE_URL, build_payload, get_config
+from ai_qa.doubao_healthcheck import DEFAULT_BASE_URL, build_payload, describe_http_error, get_config
 
 
 class DoubaoHealthcheckTests(unittest.TestCase):
@@ -23,6 +25,19 @@ class DoubaoHealthcheckTests(unittest.TestCase):
         self.assertEqual(payload["temperature"], 0)
         self.assertEqual(payload["max_tokens"], 40)
         self.assertEqual(len(payload["messages"]), 2)
+
+    def test_http_error_description_includes_safe_service_code(self):
+        error = HTTPError(
+            "https://example.invalid",
+            404,
+            "Not Found",
+            {},
+            io.BytesIO(b'{"error":{"code":"ModelNotFound","message":"model unavailable"}}'),
+        )
+        self.assertEqual(
+            describe_http_error(error),
+            "HTTP 404 (ModelNotFound: model unavailable)",
+        )
 
 
 if __name__ == "__main__":

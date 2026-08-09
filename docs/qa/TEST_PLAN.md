@@ -22,7 +22,7 @@ cases pass and no sensitive data appears in browser, API, console, or repository
 
 | ID | Preconditions | Steps | Expected result | Actual result | Status |
 | --- | --- | --- | --- | --- | --- |
-| AI-001 | Valid local API configuration | Run health-check script | A non-empty model response is received; key is not printed | Not run | Blocked |
+| AI-001 | Local API key and model configured | Run health-check script | A non-empty model response is received; key is not printed | HTTP 404 `ModelNotOpen`: model service is not activated for the configured Ark account; key not printed | Blocked |
 | AI-002 | Recipe allergen data available | Request a plan with a peanut allergy | No listed meal contains peanut; unsafe/missing data is surfaced | Not run | Blocked |
 | PLAN-001 | Signed-in user and planner API | Add a recipe to a future date | Calendar displays the saved meal after refresh | Not run | Blocked |
 | SHOP-001 | Meal plan contains overlapping ingredients | Generate a shopping list | Same ingredient is merged using agreed unit rules | Not run | Blocked |
