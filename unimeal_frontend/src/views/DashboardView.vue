@@ -66,5 +66,95 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.dinner-card { min-height: 22rem; } .dinner-image-wrap { min-height: 14rem; } .dinner-card h2, .budget-card h2, .section-title { color: var(--um-ink); font-weight: 800; letter-spacing: -.045em; } .dinner-card h2 { font-size: clamp(1.7rem, 3vw, 2.3rem); } .budget-card h2 { font-size: 2.25rem; } .budget-card h2 span { color: var(--um-muted); font-size: 1rem; font-weight: 650; letter-spacing: 0; } .budget-icon { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 50%; color: var(--um-green); background: var(--um-green-light); font-size: 1.2rem; font-weight: 800; } .progress { height: .6rem; border-radius: 99px; background: #e9ece5; } .progress-bar { border-radius: 99px; background: var(--um-coral); } .budget-note { color: var(--um-muted); font-size: .9rem; line-height: 1.55; } .section-title { margin: 0; font-size: 1.65rem; } .text-link { color: var(--um-green); font-size: .9rem; font-weight: 800; } .text-link:hover { color: var(--um-coral); } @media (max-width: 767.98px) { .dinner-image-wrap { height: 13rem; } }
+/* ===== 卡片容器基础高度 ===== */
+.dinner-card {
+  min-height: 22rem;
+}
+
+.dinner-image-wrap {
+  min-height: 14rem;
+}
+
+/* ===== 标题通用样式（共用选择器，分行写更清晰） ===== */
+.dinner-card h2,
+.budget-card h2,
+.section-title {
+  color: var(--um-ink);
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+
+/* ===== 晚餐卡片标题（响应式字体） ===== */
+.dinner-card h2 {
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+}
+
+/* ===== 预算卡片标题 ===== */
+.budget-card h2 {
+  font-size: 2.25rem;
+}
+
+.budget-card h2 span {
+  color: var(--um-muted);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+/* ===== 预算图标（圆形美元符号） ===== */
+.budget-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--um-green);
+  background: var(--um-green-light);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+/* ===== 进度条背景轨道 ===== */
+.progress {
+  height: .6rem;
+  border-radius: 99px;
+  background: #e9ece5;
+}
+
+/* ===== 进度条填充条 ===== */
+.progress-bar {
+  border-radius: 99px;
+  background: var(--um-coral);
+}
+
+/* ===== 预算备注文字 ===== */
+.budget-note {
+  color: var(--um-muted);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+/* ===== 区块标题 ===== */
+.section-title {
+  margin: 0;
+  font-size: 1.65rem;
+}
+
+/* ===== 文字链接（“探索食谱”那种） ===== */
+.text-link {
+  color: var(--um-green);
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.text-link:hover {
+  color: var(--um-coral);
+}
+
+/* ===== 移动端适配（屏幕宽度小于 768px 时） ===== */
+@media (max-width: 767.98px) {
+  .dinner-image-wrap {
+    height: 13rem;
+  }
+}
 </style>

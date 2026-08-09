@@ -22,12 +22,72 @@ defineProps({ recipe: { type: Object, required: true } })
 </template>
 
 <style scoped>
-.recipe-card { transition: transform .2s ease, box-shadow .2s ease; }
-.recipe-card:hover { transform: translateY(-4px); box-shadow: 0 15px 35px rgba(50,68,47,.12); }
-.recipe-card-image { height: 11.5rem; overflow: hidden; }
-.price-pill { position: absolute; top: .75rem; right: .75rem; border-radius: 99px; padding: .32rem .6rem; color: #fff; background: rgba(36,48,36,.88); font-size: .78rem; font-weight: 800; }
-.recipe-card-title { margin: 0; color: var(--um-ink); font-size: 1.08rem; font-weight: 800; letter-spacing: -.025em; }
-.rating { color: #a65f10; font-size: .82rem; font-weight: 750; } .rating small { color: var(--um-muted); font-weight: 600; }
-.recipe-meta { color: var(--um-muted); font-size: .83rem; font-weight: 650; }
-.diet-tag { border-radius: 99px; padding: .2rem .48rem; color: #6b7167; background: #f2f0ea; font-size: .7rem; font-weight: 700; }
+/* ===== 卡片容器：相对定位 + 平滑动画 ===== */
+.recipe-card {
+  position: relative;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+/* ===== 卡片悬停效果（微微上浮 + 阴影） ===== */
+.recipe-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(50, 68, 47, .12);
+}
+
+/* ===== 卡片图片区域 ===== */
+.recipe-card-image {
+  height: 11.5rem;
+  overflow: hidden;
+}
+
+/* ===== 价格标签（右上角的“小药丸”） ===== */
+.price-pill {
+  position: absolute;
+  top: .75rem;
+  right: .75rem;
+  border-radius: 99px;
+  padding: .32rem .6rem;
+  color: #fff;
+  background: rgba(36, 48, 36, .88);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+/* ===== 卡片标题 ===== */
+.recipe-card-title {
+  margin: 0;
+  color: var(--um-ink);
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -.025em;
+}
+
+/* ===== 评星等级 ===== */
+.rating {
+  color: #a65f10;
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.rating small {
+  color: var(--um-muted);
+  font-weight: 600;
+}
+
+/* ===== 烹饪元信息（时间、难度等） ===== */
+.recipe-meta {
+  color: var(--um-muted);
+  font-size: .83rem;
+  font-weight: 650;
+}
+
+/* ===== 饮食标签（素食、无麸质等） ===== */
+.diet-tag {
+  border-radius: 99px;
+  padding: .2rem .48rem;
+  color: #6b7167;
+  background: #f2f0ea;
+  font-size: .7rem;
+  font-weight: 700;
+}
 </style>

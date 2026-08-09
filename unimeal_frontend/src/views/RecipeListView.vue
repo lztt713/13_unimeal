@@ -34,5 +34,60 @@ onMounted(async () => { try { recipes.value = await api.getRecipes() } finally {
 </template>
 
 <style scoped>
-.intro { max-width: 44rem; } .search-panel { max-width: 52rem; margin-inline: auto; } .input-group-text { color: var(--um-green); font-size: 1.35rem; } .form-control:focus { box-shadow: none; } .filter-card h2 { margin: 0; color: var(--um-ink); font-size: 1.1rem; font-weight: 800; } .form-label { color: var(--um-ink); font-size: .82rem; font-weight: 750; } .form-select { border-color: var(--um-line); border-radius: .7rem; color: #526050; font-size: .9rem; padding: .65rem .8rem; } .form-select:focus { border-color: var(--um-green); box-shadow: 0 0 0 .2rem rgba(49,87,44,.12); } .clear-button { color: var(--um-coral); font-size: .78rem; font-weight: 750; text-decoration: none; } .results-count { color: var(--um-muted); font-size: .9rem; font-weight: 650; }
+.intro {
+  max-width: 44rem;
+}
+
+.search-panel {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.input-group-text {
+  color: var(--um-green);
+  font-size: 1.35rem;
+}
+
+.form-control:focus {
+  box-shadow: none;
+}
+
+.filter-card h2 {
+  margin: 0;
+  color: var(--um-ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.form-label {
+  color: var(--um-ink);
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.form-select {
+  border-color: var(--um-line);
+  border-radius: .7rem;
+  color: #526050;
+  font-size: .9rem;
+  padding: .65rem .8rem;
+}
+
+.form-select:focus {
+  border-color: var(--um-green);
+  box-shadow: 0 0 0 .2rem rgba(49, 87, 44, .12);
+}
+
+.clear-button {
+  color: var(--um-coral);
+  font-size: .78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.results-count {
+  color: var(--um-muted);
+  font-size: .9rem;
+  font-weight: 650;
+}
 </style>
