@@ -10,6 +10,9 @@ data, or production database credentials.
 2. Set `ARK_API_KEY` and an enabled `ARK_MODEL` in your local `.env` file.
 3. Run `python ai_qa/doubao_healthcheck.py` from the repository root.
 
+Record the model ID, configured timeout, result, and any redacted error category in
+`docs/qa/AI_CONNECTIVITY_REPORT.md`. Never paste an API key into that record.
+
 The script sends only a fixed, non-personal prompt and reports whether a usable text
 response was returned. It does not log the API key. A successful response is only a
 connectivity check, not evidence that meal-plan quality is acceptable.
