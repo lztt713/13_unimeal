@@ -13,6 +13,7 @@ BEGIN
   DECLARE foreign_key_rejected BOOLEAN DEFAULT FALSE;
   DECLARE invalid_rating_rejected BOOLEAN DEFAULT FALSE;
   DECLARE invalid_quantity_rejected BOOLEAN DEFAULT FALSE;
+  DECLARE invalid_ingredient_cost_rejected BOOLEAN DEFAULT FALSE;
   DECLARE invalid_purchase_state_rejected BOOLEAN DEFAULT FALSE;
 
   DROP TEMPORARY TABLE IF EXISTS validation_results;
@@ -58,6 +59,13 @@ BEGIN
   END;
 
   BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET invalid_ingredient_cost_rejected = TRUE;
+    UPDATE ingredients
+    SET estimated_unit_cost = -0.0001
+    WHERE ingredient_name = 'Rice';
+  END;
+
+  BEGIN
     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET invalid_purchase_state_rejected = TRUE;
     UPDATE shopping_list_items sli
     JOIN shopping_lists sl ON sl.shopping_list_id = sli.shopping_list_id
@@ -74,6 +82,8 @@ BEGIN
       'Recipe rating must remain between 1 and 5.'),
     ('Positive ingredient quantity', IF(invalid_quantity_rejected, 'PASS', 'FAIL'),
       'Recipe ingredient quantity must be greater than zero.'),
+    ('Non-negative ingredient unit cost', IF(invalid_ingredient_cost_rejected, 'PASS', 'FAIL'),
+      'Ingredient reference unit cost cannot be negative.'),
     ('Purchase-state consistency', IF(invalid_purchase_state_rejected, 'PASS', 'FAIL'),
       'A purchased shopping item needs a purchase timestamp.');
 

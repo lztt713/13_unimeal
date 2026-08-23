@@ -1,52 +1,32 @@
 # UniMeal Planner ERD
 
-This is the authoritative logical ERD for the MySQL schema in `database/master_schema.sql`. The Database Architect owns schema changes; other team members should propose changes rather than editing the master script directly.
+This is the authoritative logical ERD for the MySQL schema in [`database/master_schema.sql`](../../database/master_schema.sql). To keep it readable, the 26 tables are shown as seven focused diagrams instead of one crowded image.
 
-```mermaid
-erDiagram
-  ROLES ||--o{ USERS : assigns
-  USERS ||--o{ USER_DIETARY_PREFERENCES : sets
-  DIETARY_TAGS ||--o{ USER_DIETARY_PREFERENCES : selected_by
-  USERS ||--o{ USER_ALLERGIES : declares
-  ALLERGIES ||--o{ USER_ALLERGIES : selected_by
-  INGREDIENT_CATEGORIES ||--o{ INGREDIENTS : groups
-  MEASUREMENT_UNITS ||--o{ INGREDIENTS : defaults_to
-  INGREDIENTS ||--o{ INGREDIENT_ALLERGENS : contains
-  ALLERGIES ||--o{ INGREDIENT_ALLERGENS : maps
-  USERS ||--o{ RECIPES : authors
-  CUISINES ||--o{ RECIPES : classifies
-  RECIPES ||--o{ RECIPE_DIETARY_TAGS : labelled
-  DIETARY_TAGS ||--o{ RECIPE_DIETARY_TAGS : labels
-  RECIPES ||--o{ RECIPE_INGREDIENTS : requires
-  INGREDIENTS ||--o{ RECIPE_INGREDIENTS : appears_in
-  MEASUREMENT_UNITS ||--o{ RECIPE_INGREDIENTS : measures
-  RECIPES ||--o{ RECIPE_STEPS : contains
-  USERS ||--o{ SAVED_RECIPES : saves
-  RECIPES ||--o{ SAVED_RECIPES : saved
-  USERS ||--o{ RECIPE_RATINGS : rates
-  RECIPES ||--o{ RECIPE_RATINGS : rated
-  USERS ||--o{ RECIPE_COMMENTS : writes
-  RECIPES ||--o{ RECIPE_COMMENTS : receives
-  USERS ||--o{ BUDGET_PERIODS : owns
-  USERS ||--o{ MEAL_PLANS : owns
-  MEAL_PLANS ||--o{ MEAL_PLAN_ENTRIES : schedules
-  RECIPES ||--o{ MEAL_PLAN_ENTRIES : planned
-  USERS ||--o{ SHOPPING_LISTS : owns
-  MEAL_PLANS ||--o{ SHOPPING_LISTS : generates
-  SHOPPING_LISTS ||--o{ SHOPPING_LIST_ITEMS : contains
-  INGREDIENTS ||--o{ SHOPPING_LIST_ITEMS : aggregates
-  USERS ||--o{ PANTRY_ITEMS : tracks
-  INGREDIENTS ||--o{ PANTRY_ITEMS : stocked
-  USERS ||--o{ NOTIFICATIONS : receives
-  USERS ||--o{ CONTENT_REPORTS : files
-  RECIPES ||--o{ CONTENT_REPORTS : reported
-  RECIPE_COMMENTS ||--o{ CONTENT_REPORTS : reported
-```
+Repeated tables are intentional: each diagram is a different view of the **same** database, not a duplicate design.
 
-## Design decisions
+## Read the notation
 
-- All many-to-many relationships use junction tables with composite primary keys, preventing duplicate selections, tags, favourites, ratings, or allergen declarations.
-- `recipe_ingredients` carries quantity and unit because they belong to the recipe-ingredient relationship, not to either parent entity.
-- Meal-plan entries are unique per meal slot, and shopping lists retain generated quantities and actual purchase costs to preserve spending history.
-- Passwords are represented only by `password_hash`; the database rejects values shorter than 20 characters. The API must apply Argon2 or bcrypt before insertion.
-- The user and ingredient preference tables support the AI recommendation module without exposing user passwords or unnecessary personal data.
+- `||--o{` means one row on the left can relate to zero or many rows on the right.
+- A table between two parent tables is a junction table. It models a many-to-many relationship and prevents duplicate selections.
+- `PK` means primary key; `FK` means foreign key; `UK` means unique key.
+
+## Diagram guide
+
+| Diagram | What it explains | Current project connection |
+| --- | --- | --- |
+| [1. Accounts and preferences](erd/01-accounts-and-preferences.md) | Roles, user identity, dietary preferences and allergies | Database-ready; the API prototype still uses a temporary SQLite `students` table. |
+| [2. Ingredients and safety](erd/02-ingredients-and-safety.md) | Reusable ingredients, units, categories and allergens | The prototype has ingredients; MySQL adds shared units, categories and safety data. |
+| [3. Recipe authoring](erd/03-recipe-authoring.md) | Creating a recipe, its steps and ingredient quantities | Supports the future recipe-submission and recipe-detail pages. |
+| [4. Recipe discovery and feedback](erd/04-recipe-discovery-and-feedback.md) | Tags, favourites, ratings and comments | Directly supports the current Recipe Library card and filters. |
+| [5. Meal planning and budget](erd/05-meal-planning-and-budget.md) | Weekly plan, meal slots and budget periods | Matches the Dashboard concept and the future Calendar/Budget pages. |
+| [6. Shopping and pantry](erd/06-shopping-and-pantry.md) | Generated grocery lists, purchase state and home inventory | Matches the backend ingredient-merging prototype and future Shopping List page. |
+| [7. Administration and notifications](erd/07-administration-and-notifications.md) | Reports, review status and reminders | Future Admin and notification features. |
+
+
+> The database is organised by user journey. First we identify the user and their food restrictions. Then recipes are built from reusable ingredients and shown through tags, ratings and favourites. A user can place recipes into a weekly plan, generate a shopping list, track spending, and finally use reporting and notifications to keep the platform safe.
+
+## Current integration note
+
+The current Vue Dashboard and Recipe Library still load mock data, while the FastAPI prototype currently uses a separate SQLite schema. The MySQL design remains normalised and is not replaced by that temporary prototype.
+
+`vw_recipe_cards` is a read-only MySQL view for the current Recipe Library card payload. It is intentionally not shown as a physical ERD table.
