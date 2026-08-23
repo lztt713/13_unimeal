@@ -37,5 +37,99 @@ async function submitRecipe() {
 </template>
 
 <style scoped>
-.submission-intro { max-width: 46rem; }.form-heading { color: var(--um-ink); font-size: 1.35rem; font-weight: 800; letter-spacing: -.03em; }.form-label { color: var(--um-ink); font-size: .82rem; font-weight: 750; }.form-control, .form-select { border-color: var(--um-line); border-radius: .7rem; padding: .65rem .8rem; }.form-control:focus, .form-select:focus { border-color: var(--um-green); box-shadow: 0 0 0 .2rem rgba(49, 87, 44, .12); }.tag-choice { border: 1px solid var(--um-line); border-radius: 99px; padding: .38rem .65rem; font-size: .82rem; cursor: pointer; }.tag-choice:has(input:checked) { border-color: var(--um-green); color: var(--um-green); background: var(--um-green-light); }.ingredient-row + .ingredient-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--um-line); }.step-row + .step-row { margin-top: 1rem; }.step-row > span { display: grid; width: 2rem; height: 2rem; flex: 0 0 2rem; place-items: center; border-radius: 50%; color: var(--um-green); background: var(--um-green-light); font-weight: 800; }.preview-card { top: 6rem; }.preview-image { width: 100%; aspect-ratio: 4 / 3; border-radius: .8rem; object-fit: cover; }@media (max-width: 575.98px) { .ingredient-row .btn-link { font-size: .7rem; } }
+/* ===== 提交页面标题区 ===== */
+.submission-intro {
+  max-width: 46rem;
+}
+
+/* ===== 表单标题 ===== */
+.form-heading {
+  color: var(--um-ink);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+
+/* ===== 表单标签 ===== */
+.form-label {
+  color: var(--um-ink);
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+/* ===== 表单输入框 + 下拉框（通用样式） ===== */
+.form-control,
+.form-select {
+  border-color: var(--um-line);
+  border-radius: .7rem;
+  padding: .65rem .8rem;
+}
+
+/* ===== 表单控件聚焦状态 ===== */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--um-green);
+  box-shadow: 0 0 0 .2rem rgba(49, 87, 44, .12);
+}
+
+/* ===== 饮食标签选择（"药丸"样式） ===== */
+.tag-choice {
+  border: 1px solid var(--um-line);
+  border-radius: 99px;
+  padding: .38rem .65rem;
+  font-size: .82rem;
+  cursor: pointer;
+}
+
+/* ===== 标签被选中时的状态 ===== */
+.tag-choice:has(input:checked) {
+  border-color: var(--um-green);
+  color: var(--um-green);
+  background: var(--um-green-light);
+}
+
+/* ===== 食材行（除第一个外，上面加分割线） ===== */
+.ingredient-row + .ingredient-row {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--um-line);
+}
+
+/* ===== 步骤行（上下间距） ===== */
+.step-row + .step-row {
+  margin-top: 1rem;
+}
+
+/* ===== 步骤序号圆圈 ===== */
+.step-row > span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--um-green);
+  background: var(--um-green-light);
+  font-weight: 800;
+}
+
+/* ===== 预览卡片（粘性定位） ===== */
+.preview-card {
+  top: 6rem;
+}
+
+/* ===== 预览图片（固定比例 + 圆角） ===== */
+.preview-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: .8rem;
+  object-fit: cover;
+}
+
+/* ===== 移动端适配（超小屏） ===== */
+@media (max-width: 575.98px) {
+  .ingredient-row .btn-link {
+    font-size: .7rem;
+  }
+}
 </style>

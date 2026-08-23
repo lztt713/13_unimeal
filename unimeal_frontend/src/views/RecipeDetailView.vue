@@ -70,5 +70,165 @@ async function rateRecipe(rating) {
 </template>
 
 <style scoped>
-.detail-empty { max-width: 35rem; }.back-link { color: var(--um-green); font-size: .9rem; font-weight: 750; }.detail-image-wrap { min-height: 22rem; }.detail-title, .section-heading { color: var(--um-ink); font-weight: 800; letter-spacing: -.045em; }.detail-title { font-size: clamp(2rem, 4vw, 3.2rem); }.detail-copy { color: var(--um-muted); margin: 1rem 0; }.detail-tag { border-radius: 99px; padding: .38rem .65rem; background: #f4efe6; color: #676454; font-size: .76rem; font-weight: 750; }.col-4 strong { display: block; color: var(--um-green); font-size: 1.1rem; }.col-4 span { display: block; color: var(--um-muted); font-size: .72rem; }.recipe-rating { color: #9c5a0c; font-weight: 800; }.section-heading { font-size: 1.45rem; }.ingredient-list li { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--um-line); font-size: .94rem; }.ingredient-list li:last-child { border: 0; }.ingredient-list strong { color: var(--um-green); white-space: nowrap; }.method-list { list-style: none; padding: 0; }.method-list li { display: flex; gap: 1rem; padding: .85rem 0; }.method-list p { margin: .25rem 0 0; line-height: 1.6; }.step-number { display: grid; flex: 0 0 2rem; height: 2rem; place-items: center; border-radius: 50%; color: var(--um-green); background: var(--um-green-light); font-weight: 800; }.rating-actions { display: flex; gap: .45rem; }.rating-actions button { width: 2.25rem; height: 2.25rem; border: 1px solid #d7d1c4; border-radius: 50%; color: var(--um-muted); background: #fff; font-weight: 800; }.rating-actions button.selected, .rating-actions button:hover { border-color: var(--um-coral); color: #fff; background: var(--um-coral); }.saved-note { color: var(--um-green); font-size: .86rem; font-weight: 700; }@media (max-width: 991.98px) { .detail-image-wrap { height: 18rem; } }
+/* ===== 空状态提示区（当食谱不存在时） ===== */
+.detail-empty {
+  max-width: 35rem;
+}
+
+/* ===== 返回链接（"← Back to recipes"） ===== */
+.back-link {
+  color: var(--um-green);
+  font-size: .9rem;
+  font-weight: 750;
+}
+
+/* ===== 图片容器（最小高度，防止加载时塌陷） ===== */
+.detail-image-wrap {
+  min-height: 22rem;
+}
+
+/* ===== 标题通用样式（详情标题 + 区块标题共用） ===== */
+.detail-title,
+.section-heading {
+  color: var(--um-ink);
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+
+/* ===== 详情页主标题（响应式字体） ===== */
+.detail-title {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+/* ===== 详情描述文字（作者、简介等） ===== */
+.detail-copy {
+  color: var(--um-muted);
+  margin: 1rem 0;
+}
+
+/* ===== 标签小药丸（如 Vegetarian / Gluten Free） ===== */
+.detail-tag {
+  border-radius: 99px;
+  padding: .38rem .65rem;
+  background: #f4efe6;
+  color: #676454;
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+/* ===== 元信息卡片（时间 / 价格 / 难度中的数字） ===== */
+.col-4 strong {
+  display: block;
+  color: var(--um-green);
+  font-size: 1.1rem;
+}
+
+/* ===== 元信息卡片（时间 / 价格 / 难度中的标签文字） ===== */
+.col-4 span {
+  display: block;
+  color: var(--um-muted);
+  font-size: .72rem;
+}
+
+/* ===== 评分星星/数字 ===== */
+.recipe-rating {
+  color: #9c5a0c;
+  font-weight: 800;
+}
+
+/* ===== 区块标题（Ingredients / Method 等） ===== */
+.section-heading {
+  font-size: 1.45rem;
+}
+
+/* ===== 食材列表项 ===== */
+.ingredient-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem 0;
+  border-bottom: 1px solid var(--um-line);
+  font-size: .94rem;
+}
+
+/* ===== 最后一个食材项不要边框 ===== */
+.ingredient-list li:last-child {
+  border: 0;
+}
+
+/* ===== 食材用量（右侧绿色数字） ===== */
+.ingredient-list strong {
+  color: var(--um-green);
+  white-space: nowrap;
+}
+
+/* ===== 做法步骤列表（去除默认样式） ===== */
+.method-list {
+  list-style: none;
+  padding: 0;
+}
+
+/* ===== 每个步骤项 ===== */
+.method-list li {
+  display: flex;
+  gap: 1rem;
+  padding: .85rem 0;
+}
+
+/* ===== 步骤描述文字 ===== */
+.method-list p {
+  margin: .25rem 0 0;
+  line-height: 1.6;
+}
+
+/* ===== 步骤序号圆圈（1, 2, 3...） ===== */
+.step-number {
+  display: grid;
+  flex: 0 0 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--um-green);
+  background: var(--um-green-light);
+  font-weight: 800;
+}
+
+/* ===== 评分按钮组容器 ===== */
+.rating-actions {
+  display: flex;
+  gap: .45rem;
+}
+
+/* ===== 评分按钮（点赞/踩） ===== */
+.rating-actions button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid #d7d1c4;
+  border-radius: 50%;
+  color: var(--um-muted);
+  background: #fff;
+  font-weight: 800;
+}
+
+/* ===== 评分按钮被选中或悬停 ===== */
+.rating-actions button.selected,
+.rating-actions button:hover {
+  border-color: var(--um-coral);
+  color: #fff;
+  background: var(--um-coral);
+}
+
+/* ===== “已保存”提示文字 ===== */
+.saved-note {
+  color: var(--um-green);
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+/* ===== 平板/手机适配（屏幕宽度小于 992px） ===== */
+@media (max-width: 991.98px) {
+  .detail-image-wrap {
+    height: 18rem;
+  }
+}
 </style>
