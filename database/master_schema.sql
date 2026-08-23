@@ -88,9 +88,11 @@ CREATE TABLE IF NOT EXISTS ingredients (
   ingredient_category_id SMALLINT UNSIGNED NOT NULL,
   ingredient_name VARCHAR(120) NOT NULL,
   default_measurement_unit_id SMALLINT UNSIGNED NULL,
+  estimated_unit_cost DECIMAL(12,4) NOT NULL DEFAULT 0.0000,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   CONSTRAINT fk_ingredients_category FOREIGN KEY (ingredient_category_id) REFERENCES ingredient_categories(ingredient_category_id),
   CONSTRAINT fk_ingredients_default_unit FOREIGN KEY (default_measurement_unit_id) REFERENCES measurement_units(measurement_unit_id),
+  CONSTRAINT ck_ingredients_estimated_unit_cost CHECK (estimated_unit_cost >= 0),
   UNIQUE KEY uq_ingredients_name (ingredient_name),
   KEY idx_ingredients_category_active (ingredient_category_id, is_active)
 ) ENGINE=InnoDB;
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   author_user_id BIGINT UNSIGNED NOT NULL,
   cuisine_id SMALLINT UNSIGNED NULL,
   title VARCHAR(160) NOT NULL,
+  image_url VARCHAR(500) NULL,
   description TEXT NULL,
   preparation_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   cooking_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -314,6 +317,44 @@ CREATE TABLE IF NOT EXISTS content_reports (
   CONSTRAINT ck_reports_subject CHECK ((recipe_id IS NOT NULL) <> (recipe_comment_id IS NOT NULL)),
   KEY idx_reports_status_created (status, created_at)
 ) ENGINE=InnoDB;
+
+-- Read model for the current Recipe Library cards. It keeps the tables
+-- normalised while giving the API one predictable source for card fields.
+-- `estimated_recipe_cost` is the whole recipe cost; the API should expose
+-- `estimated_cost_per_serving` where the UI says "Price per serving".
+CREATE OR REPLACE VIEW vw_recipe_cards AS
+SELECT
+  r.recipe_id AS id,
+  r.title,
+  r.image_url,
+  COALESCE(c.cuisine_name, 'Unclassified') AS cuisine,
+  CASE r.difficulty
+    WHEN 'easy' THEN 'Easy'
+    WHEN 'medium' THEN 'Medium'
+    WHEN 'hard' THEN 'Hard'
+  END AS difficulty,
+  r.estimated_cost AS estimated_recipe_cost,
+  ROUND(r.estimated_cost / NULLIF(r.servings, 0), 2) AS estimated_cost_per_serving,
+  r.preparation_minutes + r.cooking_minutes AS cook_time,
+  COALESCE((
+    SELECT ROUND(AVG(rr.rating), 1)
+    FROM recipe_ratings rr
+    WHERE rr.recipe_id = r.recipe_id
+  ), 0.0) AS rating,
+  (
+    SELECT COUNT(*)
+    FROM recipe_ratings rr
+    WHERE rr.recipe_id = r.recipe_id
+  ) AS review_count,
+  COALESCE((
+    SELECT GROUP_CONCAT(dt.tag_name ORDER BY dt.tag_name SEPARATOR ', ')
+    FROM recipe_dietary_tags rdt
+    JOIN dietary_tags dt ON dt.dietary_tag_id = rdt.dietary_tag_id
+    WHERE rdt.recipe_id = r.recipe_id
+  ), '') AS dietary_tags
+FROM recipes r
+LEFT JOIN cuisines c ON c.cuisine_id = r.cuisine_id
+WHERE r.status = 'published';
 
 INSERT INTO roles (role_name) VALUES ('student'), ('contributor'), ('administrator')
 ON DUPLICATE KEY UPDATE role_name = VALUES(role_name);

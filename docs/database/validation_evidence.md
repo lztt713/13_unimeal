@@ -29,3 +29,7 @@ The schema contains 26 base tables after the import, including `content_reports`
 Initial import on MySQL 26.7.0 identified a conflict between the report-review `CHECK` rule and the reviewer's `ON DELETE SET NULL` foreign-key action. The incompatible `CHECK` was removed from the master script. The database still enforces exactly one reported target, while the API is responsible for requiring reviewer and review-time fields when a report is resolved or dismissed.
 
 No credentials or real user data are included in this evidence.
+
+## Frontend-alignment follow-up
+
+The later frontend-alignment update adds `recipes.image_url`, `ingredients.estimated_unit_cost`, a recipe-card read view, and a sixth validation rule for a negative ingredient reference cost. This Week 4 record remains historical evidence for the original five checks; run the migration and the current validation script again before recording a new runtime result.
