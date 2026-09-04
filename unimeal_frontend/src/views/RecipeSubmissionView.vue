@@ -1,9 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
 
 const router = useRouter()
+const route = useRoute()
 const ingredients = ref([])
 const submitted = ref(false)
 const errors = ref([])
@@ -11,7 +12,24 @@ const form = ref({ title: '', imageUrl: '', cuisine: '', difficulty: 'Easy', pre
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 const previewUrl = computed(() => form.value.imageUrl || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80')
 
-onMounted(async () => { ingredients.value = await api.getIngredients() })
+onMounted(async () => {
+  ingredients.value = await api.getIngredients()
+  if (!route.query.edit) return
+  const recipe = await api.getRecipe(route.query.edit)
+  if (!recipe) return
+  form.value = {
+    title: recipe.title,
+    imageUrl: recipe.imageUrl,
+    cuisine: recipe.cuisine,
+    difficulty: recipe.difficulty,
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    servings: recipe.servings,
+    dietaryTags: recipe.dietaryTags,
+    ingredients: recipe.ingredientDetails.map((item) => ({ ingredientId: item.ingredientId, quantity: item.quantity, unit: item.unit })),
+    steps: recipe.steps,
+  }
+})
 function addIngredient() { form.value.ingredients.push({ ingredientId: '', quantity: '', unit: 'g' }) }
 function removeIngredient(index) { if (form.value.ingredients.length > 1) form.value.ingredients.splice(index, 1) }
 function setIngredientUnit(row) { const item = ingredients.value.find((ingredient) => ingredient.id === Number(row.ingredientId)); if (item) row.unit = item.defaultUnit }
@@ -26,7 +44,8 @@ async function submitRecipe() {
   if (form.value.steps.some((step) => !step.trim())) errors.value.push('Each method step needs text.')
   if (errors.value.length) return
   const details = form.value.ingredients.map((row) => ({ ingredientId: Number(row.ingredientId), name: ingredients.value.find((item) => item.id === Number(row.ingredientId)).name, quantity: Number(row.quantity), unit: row.unit }))
-  const recipe = await api.createRecipe({ ...form.value, prepTime: Number(form.value.prepTime), cookTime: Number(form.value.cookTime), servings: Number(form.value.servings), estimatedCost: 0, ingredients: details.map((item) => item.name.toLowerCase()), ingredientDetails: details, steps: form.value.steps.map((step) => step.trim()) })
+  const payload = { ...form.value, prepTime: Number(form.value.prepTime), cookTime: Number(form.value.cookTime), servings: Number(form.value.servings), estimatedCost: 0, ingredients: details.map((item) => item.name.toLowerCase()), ingredientDetails: details, steps: form.value.steps.map((step) => step.trim()) }
+  const recipe = route.query.edit ? await api.updateRecipe(route.query.edit, payload) : await api.createRecipe(payload)
   submitted.value = true
   setTimeout(() => router.push(`/recipes/${recipe.id}`), 700)
 }

@@ -8,11 +8,14 @@ const recipe = ref(null)
 const loading = ref(true)
 const selectedRating = ref(0)
 const ratingSaved = ref(false)
+const saved = ref(false)
 
 const totalTime = computed(() => recipe.value ? recipe.value.prepTime + recipe.value.cookTime : 0)
 
 onMounted(async () => {
-  recipe.value = await api.getRecipe(props.id)
+  const [recipeData, savedIds] = await Promise.all([api.getRecipe(props.id), api.getSavedRecipeIds()])
+  recipe.value = recipeData
+  saved.value = savedIds.includes(Number(props.id))
   loading.value = false
 })
 
@@ -20,6 +23,10 @@ async function rateRecipe(rating) {
   selectedRating.value = rating
   recipe.value = await api.addRecipeRating(props.id, rating)
   ratingSaved.value = true
+}
+
+async function toggleSaved() {
+  saved.value = (await api.toggleSavedRecipe(props.id)).saved
 }
 </script>
 
@@ -45,7 +52,7 @@ async function rateRecipe(rating) {
                 <div class="col-4"><strong>${{ recipe.estimatedCost.toFixed(2) }}</strong><span>Per serving</span></div>
                 <div class="col-4"><strong>{{ recipe.servings }}</strong><span>Servings</span></div>
               </div>
-              <div class="d-flex align-items-center gap-2"><span class="recipe-rating">{{ recipe.rating }} / 5</span><span class="text-secondary small">from {{ recipe.reviewCount }} ratings</span></div>
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-3"><div class="d-flex align-items-center gap-2"><span class="recipe-rating">{{ recipe.rating }} / 5</span><span class="text-secondary small">from {{ recipe.reviewCount }} ratings</span></div><button class="btn btn-outline-primary rounded-pill btn-sm" @click="toggleSaved">{{ saved ? 'Saved to favourites' : 'Save recipe' }}</button></div>
             </div>
           </div>
         </article>

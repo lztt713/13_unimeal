@@ -12,6 +12,9 @@ import AuthView from '../views/AuthView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import AiHelperView from '../views/AiHelperView.vue'
+import MyRecipesView from '../views/MyRecipesView.vue'
+import AdminManagementView from '../views/AdminManagementView.vue'
+import { api } from '../services/api'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,14 +26,22 @@ const router = createRouter({
     { path: '/dashboard', name: 'dashboard', component: DashboardView },
     { path: '/recipes', name: 'recipes', component: RecipeListView },
     { path: '/recipes/:id', name: 'recipe-detail', component: RecipeDetailView, props: true },
-    { path: '/submit-recipe', name: 'recipe-submission', component: RecipeSubmissionView },
+    { path: '/submit-recipe', name: 'recipe-submission', component: RecipeSubmissionView, meta: { roles: ['contributor', 'administrator'] } },
+    { path: '/my-recipes', name: 'my-recipes', component: MyRecipesView, meta: { roles: ['contributor', 'administrator'] } },
     { path: '/calendar', name: 'calendar', component: MealCalendarView },
     { path: '/shopping-list', name: 'shopping-list', component: ShoppingListView },
     { path: '/budget', name: 'budget', component: BudgetSummaryView },
-    { path: '/admin', name: 'admin', component: AdminDashboardView },
+    { path: '/admin', name: 'admin', component: AdminDashboardView, meta: { roles: ['administrator'] } },
+    { path: '/admin/manage', name: 'admin-management', component: AdminManagementView, meta: { roles: ['administrator'] } },
     { path: '/ai-helper', name: 'ai-helper', component: AiHelperView },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
+})
+
+router.beforeEach(async (to) => {
+  if (!to.meta.roles) return true
+  const user = await api.getCurrentUser()
+  return to.meta.roles.includes(user.role) ? true : { name: 'dashboard' }
 })
 
 export default router

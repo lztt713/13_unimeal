@@ -23,4 +23,14 @@ export const adminOverview = {
     { id: 2, targetType: 'Comment', targetTitle: 'Comment on Chickpea Coconut Curry', reporter: 'Leo Wang', reason: 'Inappropriate language', status: 'In review', createdAt: '2026-09-02' },
     { id: 3, targetType: 'Recipe', targetTitle: 'Quick Noodle Bowl', reporter: 'Priya Shah', reason: 'Missing allergy warning', status: 'Open', createdAt: '2026-09-01' },
   ],
+  users: [
+    { id: 1, displayName: 'Michael Zhao', email: 'michael@unimeal.test', role: 'student', status: 'Active' },
+    { id: 2, displayName: 'Ava Lee', email: 'ava@unimeal.test', role: 'contributor', status: 'Active' },
+    { id: 3, displayName: 'Leo Wang', email: 'leo@unimeal.test', role: 'student', status: 'Suspended' },
+  ],
+  ingredientCategories: [
+    { id: 1, name: 'Pantry', description: 'Dry goods, grains and canned food' },
+    { id: 2, name: 'Produce', description: 'Fresh fruit and vegetables' },
+    { id: 3, name: 'Protein', description: 'Meat, eggs and plant proteins' },
+  ],
 }

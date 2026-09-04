@@ -9,6 +9,7 @@ export const http = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ||
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const purchasedShoppingItemKeys = new Set()
+const contributorRecipeIds = new Set([1, 2, 3])
 
 function mergedShoppingItems(recipeIds) {
   const items = new Map()
@@ -31,7 +32,7 @@ export const api = {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const tonightEntry = weeklyPlan.entries.find((entry) => entry.plannedDate === today && entry.mealType === 'Dinner')
     const tonight = recipes.find((recipe) => recipe.id === tonightEntry?.recipeId) || dashboardRecipes.tonight
-    return clone({ ...dashboard, ...dashboardRecipes, tonight })
+    return clone({ ...dashboard, ...dashboardRecipes, favourites: recipes.filter((recipe) => dashboard.favouriteRecipeIds.includes(recipe.id)), tonight })
   },
   async getRecipes() { return clone(recipes) },
   async getRecipe(recipeId) {
@@ -39,9 +40,29 @@ export const api = {
   },
   async getIngredients() { return clone(ingredients) },
   async createRecipe(recipe) {
-    const savedRecipe = { ...clone(recipe), id: Date.now(), rating: 0, reviewCount: 0, comments: [] }
+    const savedRecipe = { ...clone(recipe), id: Date.now(), authorId: currentUser.id, status: 'Draft', rating: 0, reviewCount: 0, comments: [] }
     recipes.unshift(savedRecipe)
+    contributorRecipeIds.add(savedRecipe.id)
     return clone(savedRecipe)
+  },
+  async updateRecipe(recipeId, recipe) {
+    const index = recipes.findIndex((item) => item.id === Number(recipeId))
+    if (index < 0) throw new Error('Recipe not found')
+    recipes[index] = { ...recipes[index], ...clone(recipe), id: recipes[index].id }
+    return clone(recipes[index])
+  },
+  async getMyRecipes() { return clone(recipes.filter((recipe) => contributorRecipeIds.has(recipe.id))) },
+  async toggleRecipePublication(recipeId) {
+    const recipe = recipes.find((item) => item.id === Number(recipeId))
+    if (!recipe) throw new Error('Recipe not found')
+    recipe.status = recipe.status === 'Published' ? 'Draft' : 'Published'
+    return clone(recipe)
+  },
+  async deleteMyRecipe(recipeId) {
+    const index = recipes.findIndex((item) => item.id === Number(recipeId))
+    if (index >= 0) recipes.splice(index, 1)
+    contributorRecipeIds.delete(Number(recipeId))
+    return clone({ id: Number(recipeId) })
   },
   async addRecipeRating(recipeId, rating) {
     const recipe = recipes.find((item) => item.id === Number(recipeId))
@@ -75,8 +96,14 @@ export const api = {
   },
   async getBudgetSummary() { return clone(budgetSummary) },
   async getCurrentUser() { return clone(currentUser) },
-  async signIn({ email }) { return clone({ ...currentUser, email: email || currentUser.email }) },
-  async register({ name, email }) { return clone({ ...currentUser, displayName: name || currentUser.displayName, email: email || currentUser.email }) },
+  async signIn({ email, role }) {
+    Object.assign(currentUser, { email: email || currentUser.email, role: role || currentUser.role })
+    return clone(currentUser)
+  },
+  async register({ name, email }) {
+    Object.assign(currentUser, { displayName: name || currentUser.displayName, email: email || currentUser.email, role: 'student' })
+    return clone(currentUser)
+  },
   async updateProfile(profile) { Object.assign(currentUser, clone(profile)); return clone(currentUser) },
   async getAdminOverview() { return clone(adminOverview) },
   async updateReportStatus(reportId, status) {
@@ -84,6 +111,38 @@ export const api = {
     if (report) report.status = status
     return clone(adminOverview)
   },
+  async getAdminManagement() { return clone({ users: adminOverview.users, recipes }) },
+  async updateUser(userId, update) {
+    const user = adminOverview.users.find((item) => item.id === Number(userId))
+    if (user) Object.assign(user, update)
+    return this.getAdminManagement()
+  },
+  async updateAdminRecipeStatus(recipeId, status) {
+    const recipe = recipes.find((item) => item.id === Number(recipeId))
+    if (recipe) recipe.status = status
+    return this.getAdminManagement()
+  },
+  async getIngredientCategories() { return clone(adminOverview.ingredientCategories) },
+  async addIngredientCategory(name) {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Category name is required')
+    if (adminOverview.ingredientCategories.some((category) => category.name.toLowerCase() === trimmed.toLowerCase())) throw new Error('This category already exists')
+    adminOverview.ingredientCategories.push({ id: Date.now(), name: trimmed, description: 'Custom category' })
+    return this.getIngredientCategories()
+  },
+  async deleteIngredientCategory(categoryId) {
+    const index = adminOverview.ingredientCategories.findIndex((item) => item.id === Number(categoryId))
+    if (index >= 0) adminOverview.ingredientCategories.splice(index, 1)
+    return this.getIngredientCategories()
+  },
+  async toggleSavedRecipe(recipeId) {
+    const id = Number(recipeId)
+    const index = dashboard.favouriteRecipeIds.indexOf(id)
+    if (index >= 0) dashboard.favouriteRecipeIds.splice(index, 1)
+    else dashboard.favouriteRecipeIds.push(id)
+    return clone({ saved: index < 0 })
+  },
+  async getSavedRecipeIds() { return clone(dashboard.favouriteRecipeIds) },
   async getAiRecommendation(query) {
     const normalized = query.trim().toLowerCase()
     const matches = recipes.filter((recipe) => [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags].join(' ').toLowerCase().includes(normalized) || recipe.dietaryTags.some((tag) => normalized.includes(tag.toLowerCase())))
