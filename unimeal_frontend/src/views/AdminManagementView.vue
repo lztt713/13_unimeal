@@ -25,7 +25,16 @@ onMounted(load)
 
 <style scoped>
 .nav-pills .nav-link { color: var(--um-green); font-weight: 750; }
-.nav-pills .nav-link.active { background: var(--um-green); }
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  color: #fff;
+  background: var(--um-green);
+}
+.nav-pills .nav-link.active:hover,
+.nav-pills .nav-link.active:focus {
+  color: #fff;
+  background: #274a23;
+}
 .table small { display: block; color: var(--um-muted); }
 .form-label { color: var(--um-ink); font-size: .82rem; font-weight: 750; }
 .category-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--um-line); border-radius: .8rem; }
