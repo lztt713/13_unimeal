@@ -3,6 +3,7 @@ import { dashboard, dashboardRecipes } from '../mock/dashboard'
 import { recipes } from '../mock/recipes'
 import { ingredients } from '../mock/ingredients'
 import { budgetSummary, weeklyPlan } from '../mock/planning'
+import { adminOverview, currentUser } from '../mock/users'
 
 export const http = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '/api', timeout: 8000 })
 
@@ -73,4 +74,19 @@ export const api = {
     return this.getShoppingList()
   },
   async getBudgetSummary() { return clone(budgetSummary) },
+  async getCurrentUser() { return clone(currentUser) },
+  async signIn({ email }) { return clone({ ...currentUser, email: email || currentUser.email }) },
+  async register({ name, email }) { return clone({ ...currentUser, displayName: name || currentUser.displayName, email: email || currentUser.email }) },
+  async updateProfile(profile) { Object.assign(currentUser, clone(profile)); return clone(currentUser) },
+  async getAdminOverview() { return clone(adminOverview) },
+  async updateReportStatus(reportId, status) {
+    const report = adminOverview.reports.find((item) => item.id === reportId)
+    if (report) report.status = status
+    return clone(adminOverview)
+  },
+  async getAiRecommendation(query) {
+    const normalized = query.trim().toLowerCase()
+    const matches = recipes.filter((recipe) => [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags].join(' ').toLowerCase().includes(normalized) || recipe.dietaryTags.some((tag) => normalized.includes(tag.toLowerCase())))
+    return clone({ query, mode: 'mock', summary: 'Based on your request, these recipes balance cost, time and dietary tags.', recipes: matches.length ? matches.slice(0, 3) : recipes.filter((recipe) => recipe.estimatedCost <= 5).slice(0, 3), cautions: ['Check ingredient labels against your allergies.', 'Estimated costs can vary by supermarket.'] })
+  },
 }
