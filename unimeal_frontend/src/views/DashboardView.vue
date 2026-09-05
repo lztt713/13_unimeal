@@ -6,13 +6,26 @@ import { api } from '../services/api'
 const data = ref(null)
 const loading = ref(true)
 const error = ref(false)
+const recipes = ref([])
+const replaceOpen = ref(false)
+const selectedRecipeId = ref('')
 
 const budgetPercent = computed(() => data.value ? Math.min(100, (data.value.spent / data.value.weeklyBudget) * 100) : 0)
 const remaining = computed(() => data.value ? data.value.weeklyBudget - data.value.spent : 0)
 
 onMounted(async () => {
-  try { data.value = await api.getDashboard() } catch { error.value = true } finally { loading.value = false }
+  try { [data.value, recipes.value] = await Promise.all([api.getDashboard(), api.getRecipes()]) } catch { error.value = true } finally { loading.value = false }
 })
+
+async function replaceDinner() {
+  if (!selectedRecipeId.value) return
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  await api.saveMealPlanEntry({ plannedDate: today, mealType: 'Dinner', recipeId: Number(selectedRecipeId.value), plannedServings: 2 })
+  data.value = await api.getDashboard()
+  replaceOpen.value = false
+  selectedRecipeId.value = ''
+}
 </script>
 
 <template>
@@ -40,7 +53,7 @@ onMounted(async () => {
                   <h2>{{ data.tonight.title }}</h2>
                   <p class="text-muted mb-4">A tasty, low-stress dinner that fits your plan.</p>
                   <div class="d-flex flex-wrap gap-2 mb-4"><span class="soft-badge">{{ data.tonight.cookTime }} min</span><span class="soft-badge">${{ data.tonight.estimatedCost.toFixed(2) }}</span><span class="soft-badge">{{ data.tonight.difficulty }}</span></div>
-                  <div class="d-flex flex-wrap gap-2"><RouterLink class="btn btn-primary rounded-pill px-4" :to="`/recipes/${data.tonight.id}`">View recipe</RouterLink><button class="btn btn-outline-primary rounded-pill px-4" type="button">Replace</button></div>
+                  <div class="d-flex flex-wrap gap-2"><RouterLink class="btn btn-primary rounded-pill px-4" :to="`/recipes/${data.tonight.id}`">View recipe</RouterLink><button class="btn btn-outline-primary rounded-pill px-4" type="button" @click="replaceOpen = true">Replace</button></div>
                 </div>
               </div>
             </article>
@@ -61,6 +74,19 @@ onMounted(async () => {
           <div v-else class="empty-state p-5">Save a recipe and it will appear here.</div>
         </section>
       </template>
+      <div v-if="replaceOpen" class="modal-backdrop-custom" @click.self="replaceOpen = false">
+        <section class="replace-modal surface-card" role="dialog" aria-modal="true" aria-labelledby="replace-title">
+          <button class="close-modal" type="button" aria-label="Close" @click="replaceOpen = false">×</button>
+          <p class="eyebrow">Tonight's dinner</p>
+          <h2 id="replace-title" class="section-title">Choose a replacement</h2>
+          <p class="text-secondary mt-2">This updates today's Dinner entry in your current meal plan.</p>
+          <select v-model="selectedRecipeId" class="form-select mt-3">
+            <option value="">Select a recipe</option>
+            <option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">{{ recipe.title }} - ${{ recipe.estimatedCost.toFixed(2) }}</option>
+          </select>
+          <div class="d-flex justify-content-end gap-2 mt-4"><button class="btn btn-outline-primary rounded-pill px-4" type="button" @click="replaceOpen = false">Cancel</button><button class="btn btn-primary rounded-pill px-4" type="button" :disabled="!selectedRecipeId" @click="replaceDinner">Save dinner</button></div>
+        </section>
+      </div>
     </div>
   </section>
 </template>
@@ -149,6 +175,32 @@ onMounted(async () => {
 
 .text-link:hover {
   color: var(--um-coral);
+}
+
+.modal-backdrop-custom {
+  position: fixed;
+  z-index: 1050;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(30, 43, 28, .45);
+}
+
+.replace-modal {
+  position: relative;
+  width: min(100%, 32rem);
+  padding: 2rem;
+}
+
+.close-modal {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  border: 0;
+  color: var(--um-muted);
+  background: transparent;
+  font-size: 1.4rem;
 }
 
 /* ===== 移动端适配（屏幕宽度小于 768px 时） ===== */

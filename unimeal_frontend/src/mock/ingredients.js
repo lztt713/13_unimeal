@@ -7,4 +7,13 @@ export const ingredients = [
   { id: 6, name: 'Broccoli', defaultUnit: 'g' },
   { id: 7, name: 'Chickpeas', defaultUnit: 'g' },
   { id: 8, name: 'Coconut milk', defaultUnit: 'ml' },
+  { id: 9, name: 'Wholemeal wraps', defaultUnit: 'piece' },
+  { id: 10, name: 'Hummus', defaultUnit: 'g' },
+  { id: 11, name: 'Cucumber', defaultUnit: 'piece' },
+  { id: 12, name: 'Red lentils', defaultUnit: 'g' },
+  { id: 13, name: 'Carrots', defaultUnit: 'piece' },
+  { id: 14, name: 'Ground cumin', defaultUnit: 'tsp' },
+  { id: 15, name: 'Mushrooms', defaultUnit: 'g' },
+  { id: 16, name: 'Sourdough bread', defaultUnit: 'slice' },
+  { id: 17, name: 'Garlic', defaultUnit: 'clove' },
 ]
