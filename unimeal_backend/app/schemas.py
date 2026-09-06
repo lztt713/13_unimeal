@@ -1,130 +1,176 @@
-"""Pydantic schemas for request/response validation."""
+"""Pydantic schemas for the UniMeal API contract."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-# ── Ingredient ──────────────────────────────────────────────────────────────
-
-class IngredientBase(BaseModel):
-    name: str
-    unit: str = "g"
-    unit_price: float = 0.0
-
-    model_config = {"from_attributes": True}
+api_model_config = ConfigDict(
+    from_attributes=True,
+    populate_by_name=True,
+)
 
 
-class IngredientResponse(IngredientBase):
+class IngredientResponse(BaseModel):
+    """Ingredient option returned to the recipe submission form."""
+
+    model_config = api_model_config
+
     id: int
-
-
-# ── Recipe Ingredient (junction) ─────────────────────────────────────────────
-
-class RecipeIngredientBase(BaseModel):
-    ingredient_id: int
-    quantity: float = 1.0
-
-    model_config = {"from_attributes": True}
-
-
-class RecipeIngredientDetail(BaseModel):
-    """What the frontend sees: ingredient name + quantity + cost contribution."""
-
-    ingredient_id: int
     name: str
-    quantity: float
-    unit: str
-    unit_price: float
-    cost: float  # quantity × unit_price
-
-    model_config = {"from_attributes": True}
-
-
-# ── Recipe ──────────────────────────────────────────────────────────────────
-
-class RecipeBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200)
-    image_url: str = ""
-    cuisine: str = Field(..., min_length=1, max_length=50)
-    difficulty: str = Field(default="Easy", pattern=r"^(Easy|Medium|Hard)$")
-    cook_time: int = Field(default=20, ge=0)
-    rating: float = Field(default=0.0, ge=0.0, le=5.0)
-    review_count: int = Field(default=0, ge=0)
-    dietary_tags: list[str] = []
-    steps: list[str] = []
-
-    model_config = {"from_attributes": True}
-
-
-class RecipeCreate(RecipeBase):
-    """Schema for creating a new recipe — includes ingredient list."""
-
-    ingredients: list[RecipeIngredientItem] = []
+    default_unit: str = Field(alias="defaultUnit")
+    unit_price: float = Field(alias="unitPrice")
+    category: str | None = None
 
 
 class RecipeIngredientItem(BaseModel):
-    """A single ingredient entry in a recipe-create payload."""
+    """Minimal ingredient reference used by older API clients."""
 
-    ingredient_id: int
+    model_config = api_model_config
+
+    ingredient_id: int = Field(alias="ingredientId")
     quantity: float = 1.0
+    unit: str | None = None
+
+
+class RecipeIngredientDetail(RecipeIngredientItem):
+    """Full ingredient line returned on recipe detail responses."""
+
+    name: str
+    unit: str
+    unit_price: float = Field(default=0.0, alias="unitPrice")
+    cost: float = 0.0
+
+
+class RecipeCommentResponse(BaseModel):
+    """Placeholder-friendly response shape for recipe feedback."""
+
+    model_config = api_model_config
+
+    id: int
+    author: str
+    text: str
+    rating: int | None = None
+    created_at: str | None = Field(default=None, alias="createdAt")
+
+
+class RecipeBase(BaseModel):
+    """Fields shared by create, update, and response payloads."""
+
+    model_config = api_model_config
+
+    title: str = Field(..., min_length=1, max_length=160)
+    image_url: str = Field(default="", alias="imageUrl")
+    cuisine: str = Field(..., min_length=1, max_length=60)
+    difficulty: str = Field(default="Easy", pattern=r"^(Easy|Medium|Hard)$")
+    prep_time: int = Field(default=0, ge=0, alias="prepTime")
+    cook_time: int = Field(default=20, ge=0, alias="cookTime")
+    servings: int = Field(default=1, ge=1, le=50)
+    estimated_cost: float = Field(default=0.0, ge=0.0, alias="estimatedCost")
+    dietary_tags: list[str] = Field(default_factory=list, alias="dietaryTags")
+    ingredients: list[str] = Field(default_factory=list)
+    ingredient_details: list[RecipeIngredientDetail] = Field(default_factory=list, alias="ingredientDetails")
+    steps: list[str] = Field(default_factory=list)
+
+
+class RecipeCreate(RecipeBase):
+    """Schema for creating a recipe against the normalized MySQL tables."""
+
+
+class RecipeUpdate(BaseModel):
+    """Partial update schema for contributor recipe edits."""
+
+    model_config = api_model_config
+
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    image_url: str | None = Field(default=None, alias="imageUrl")
+    cuisine: str | None = Field(default=None, min_length=1, max_length=60)
+    difficulty: str | None = Field(default=None, pattern=r"^(Easy|Medium|Hard)$")
+    prep_time: int | None = Field(default=None, ge=0, alias="prepTime")
+    cook_time: int | None = Field(default=None, ge=0, alias="cookTime")
+    servings: int | None = Field(default=None, ge=1, le=50)
+    estimated_cost: float | None = Field(default=None, ge=0.0, alias="estimatedCost")
+    dietary_tags: list[str] | None = Field(default=None, alias="dietaryTags")
+    ingredients: list[str] | None = None
+    ingredient_details: list[RecipeIngredientDetail] | None = Field(default=None, alias="ingredientDetails")
+    steps: list[str] | None = None
+    status: str | None = None
 
 
 class RecipeResponse(RecipeBase):
+    """Recipe response shaped for the Vue frontend."""
+
     id: int
-    estimated_cost: float = 0.0
-    ingredients: list[RecipeIngredientItem] = []
-    ingredient_details: list[RecipeIngredientDetail] = []
+    rating: float = 0.0
+    review_count: int = Field(default=0, alias="reviewCount")
+    status: str = "Draft"
+    comments: list[RecipeCommentResponse] = Field(default_factory=list)
 
-
-# ── Dashboard ────────────────────────────────────────────────────────────────
 
 class StudentResponse(BaseModel):
-    name: str
-    weekly_budget: float
-    spent: float
+    """Dashboard student summary."""
 
-    model_config = {"from_attributes": True}
+    model_config = api_model_config
+
+    name: str
+    weekly_budget: float = Field(alias="weeklyBudget")
+    spent: float
 
 
 class DashboardResponse(BaseModel):
+    """Dashboard response kept intentionally small for this backend handoff."""
+
+    model_config = api_model_config
+
     student: StudentResponse
-    weekly_budget: float
+    weekly_budget: float = Field(alias="weeklyBudget")
     spent: float
     tonight: RecipeResponse | None = None
-    favourites: list[RecipeResponse] = []
+    favourites: list[RecipeResponse] = Field(default_factory=list)
 
-
-# ── Search / Filter ──────────────────────────────────────────────────────────
 
 class RecipeSearchParams(BaseModel):
     """Query parameters for multi-condition recipe search."""
 
-    search: str | None = None  # free-text across title, cuisine, ingredients
+    search: str | None = None
     cuisine: str | None = None
     difficulty: str | None = None
-    price_max: float | None = None  # e.g. 4.0 for "under $4"
+    price_max: float | None = None
     dietary_tags: list[str] | None = None
-    sort_by: str | None = None  # "rating", "cost", "cook_time"
-    sort_order: str = "asc"  # "asc" or "desc"
+    sort_by: str | None = None
+    sort_order: str = "asc"
 
-
-# ── Shopping List / Procurement ──────────────────────────────────────────────
 
 class MergedIngredient(BaseModel):
     """A deduplicated ingredient entry in a shopping list."""
 
-    ingredient_id: int
+    model_config = api_model_config
+
+    ingredient_id: int = Field(alias="ingredientId")
     name: str
     unit: str
-    total_quantity: float
-    unit_price: float
-    total_cost: float  # total_quantity × unit_price
+    total_quantity: float = Field(alias="totalQuantity")
+    unit_price: float = Field(alias="unitPrice")
+    total_cost: float = Field(alias="totalCost")
 
 
 class ShoppingListResponse(BaseModel):
     """Shopping list with merged ingredients and total procurement cost."""
 
-    recipe_ids: list[int]
+    model_config = api_model_config
+
+    recipe_ids: list[int] = Field(alias="recipeIds")
     items: list[MergedIngredient]
-    total_procurement_cost: float
+    total_procurement_cost: float = Field(alias="totalProcurementCost")
+
+
+class RatingCreate(BaseModel):
+    """Request body for creating or updating a recipe rating."""
+
+    rating: int = Field(..., ge=1, le=5)
+
+
+class ToggleSavedRecipeResponse(BaseModel):
+    """Response returned after toggling a saved recipe."""
+
+    saved: bool

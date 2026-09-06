@@ -7,11 +7,7 @@ Run with:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine
 from app.routers import dashboard, recipes
-
-# Create all tables on startup (idempotent)
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="UniMeal API",
