@@ -14,7 +14,11 @@ async function submit() {
   error.value = ''
   if (!form.value.email || !form.value.password || (isRegister.value && !form.value.name)) { error.value = 'Please complete all required fields.'; return }
   saving.value = true
-  try { isRegister.value ? await api.register(form.value) : await api.signIn(form.value); router.push('/dashboard') }
+  try {
+    if (isRegister.value) await api.register(form.value)
+    else await api.signIn(form.value)
+    router.push('/dashboard')
+  }
   catch { error.value = 'We could not complete that request. Please try again.' }
   finally { saving.value = false }
 }

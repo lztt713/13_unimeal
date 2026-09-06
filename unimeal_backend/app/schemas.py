@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -174,3 +176,94 @@ class ToggleSavedRecipeResponse(BaseModel):
     """Response returned after toggling a saved recipe."""
 
     saved: bool
+
+
+class MealPlanEntryWrite(BaseModel):
+    """Create or update one meal-plan slot."""
+
+    model_config = api_model_config
+
+    id: int | None = None
+    planned_date: date = Field(alias="plannedDate")
+    meal_type: str = Field(alias="mealType", min_length=1, max_length=20)
+    recipe_id: int = Field(alias="recipeId", gt=0)
+    planned_servings: int = Field(default=1, alias="plannedServings", ge=1, le=50)
+    notes: str | None = Field(default=None, max_length=500)
+
+
+class MealPlanEntryResponse(BaseModel):
+    """Vue-friendly representation of a planned meal."""
+
+    model_config = api_model_config
+
+    id: int
+    planned_date: date = Field(alias="plannedDate")
+    meal_type: str = Field(alias="mealType")
+    recipe_id: int = Field(alias="recipeId")
+    planned_servings: int = Field(alias="plannedServings")
+    notes: str | None = None
+
+
+class MealPlanResponse(BaseModel):
+    """Current week plan used by the calendar and dashboard."""
+
+    model_config = api_model_config
+
+    id: int | None = None
+    week_start_date: date = Field(alias="weekStartDate")
+    plan_name: str = Field(default="Weekly meal plan", alias="planName")
+    entries: list[MealPlanEntryResponse] = Field(default_factory=list)
+
+
+class PersistedShoppingItemResponse(BaseModel):
+    """A generated shopping-list line persisted in MySQL."""
+
+    model_config = api_model_config
+
+    id: int
+    ingredient_id: int | None = Field(default=None, alias="ingredientId")
+    name: str
+    unit: str
+    total_quantity: float = Field(alias="totalQuantity")
+    unit_price: float = Field(alias="unitPrice")
+    estimated_cost: float = Field(alias="estimatedCost")
+    actual_cost: float | None = Field(default=None, alias="actualCost")
+    purchased: bool
+    category: str | None = None
+
+
+class PersistedShoppingListResponse(BaseModel):
+    """Current meal plan's generated and persisted shopping list."""
+
+    model_config = api_model_config
+
+    id: int | None = None
+    recipe_ids: list[int] = Field(default_factory=list, alias="recipeIds")
+    status: str = "active"
+    items: list[PersistedShoppingItemResponse] = Field(default_factory=list)
+    total_estimated_cost: float = Field(default=0.0, alias="totalEstimatedCost")
+
+
+class BudgetPeriodResponse(BaseModel):
+    """Budget dates and amount returned to the summary page."""
+
+    model_config = api_model_config
+
+    start_date: date = Field(alias="startDate")
+    end_date: date = Field(alias="endDate")
+    budget_amount: float = Field(alias="budgetAmount")
+
+
+class BudgetCategoryResponse(BaseModel):
+    label: str
+    amount: float
+
+
+class BudgetSummaryResponse(BaseModel):
+    """Purchased shopping-list cost compared with the active budget."""
+
+    model_config = api_model_config
+
+    period: BudgetPeriodResponse
+    actual_spent: float = Field(alias="actualSpent")
+    categories: list[BudgetCategoryResponse] = Field(default_factory=list)

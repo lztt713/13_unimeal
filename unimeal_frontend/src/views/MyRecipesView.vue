@@ -21,7 +21,7 @@ async function togglePublication(recipe) {
 }
 
 async function removeRecipe(recipe) {
-  if (!window.confirm(`Delete “${recipe.title}”? This only changes mock data.`)) return
+  if (!window.confirm(`Delete “${recipe.title}”? This cannot be undone.`)) return
   busyId.value = recipe.id
   await api.deleteMyRecipe(recipe.id)
   await loadRecipes()

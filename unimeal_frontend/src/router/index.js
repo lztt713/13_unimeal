@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
-import PlaceholderView from '../views/PlaceholderView.vue'
 import RecipeListView from '../views/RecipeListView.vue'
 import RecipeDetailView from '../views/RecipeDetailView.vue'
 import RecipeSubmissionView from '../views/RecipeSubmissionView.vue'

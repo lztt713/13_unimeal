@@ -13,6 +13,7 @@ from app.models import (
     Cuisine,
     DietaryTag,
     Ingredient,
+    MealPlanEntry,
     MeasurementUnit,
     Recipe,
     RecipeIngredient,
@@ -241,6 +242,19 @@ def list_recipes(
     return [_recipe_to_response(recipe, db) for recipe in recipes]
 
 
+@router.get("/my-recipes", response_model=list[RecipeResponse])
+def list_my_recipes(db: Session = Depends(get_db)):
+    """Return every recipe owned by the default contributor, including drafts."""
+    contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
+    recipes = (
+        db.query(Recipe)
+        .filter(Recipe.author_user_id == contributor.user_id)
+        .order_by(Recipe.updated_at.desc(), Recipe.recipe_id.desc())
+        .all()
+    )
+    return [_recipe_to_response(recipe, db) for recipe in recipes]
+
+
 @router.get("/recipes/{recipe_id}", response_model=RecipeResponse)
 def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
     """Get a single recipe with ingredients and method steps."""
@@ -321,6 +335,30 @@ def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(g
     db.commit()
     db.refresh(recipe)
     return _recipe_to_response(recipe, db)
+
+
+@router.delete("/recipes/{recipe_id}")
+def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    """Delete a recipe owned by the default contributor."""
+    contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
+    recipe = (
+        db.query(Recipe)
+        .filter(
+            Recipe.recipe_id == recipe_id,
+            Recipe.author_user_id == contributor.user_id,
+        )
+        .first()
+    )
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Contributor recipe not found")
+    if db.query(MealPlanEntry).filter(MealPlanEntry.recipe_id == recipe_id).first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Remove this recipe from meal plans before deleting it",
+        )
+    db.delete(recipe)
+    db.commit()
+    return {"id": recipe_id}
 
 
 @router.post("/recipes/{recipe_id}/ratings", response_model=RecipeResponse)

@@ -10,7 +10,7 @@ const recipes = ref([])
 const replaceOpen = ref(false)
 const selectedRecipeId = ref('')
 
-const budgetPercent = computed(() => data.value ? Math.min(100, (data.value.spent / data.value.weeklyBudget) * 100) : 0)
+const budgetPercent = computed(() => data.value?.weeklyBudget > 0 ? Math.min(100, (data.value.spent / data.value.weeklyBudget) * 100) : 0)
 const remaining = computed(() => data.value ? data.value.weeklyBudget - data.value.spent : 0)
 
 onMounted(async () => {
@@ -46,7 +46,7 @@ async function replaceDinner() {
         <div class="row g-4 align-items-stretch">
           <div class="col-lg-8">
             <article class="surface-card dinner-card h-100">
-              <div class="row g-0 h-100">
+              <div v-if="data.tonight" class="row g-0 h-100">
                 <div class="col-md-6 dinner-image-wrap"><img class="recipe-image" :src="data.tonight.imageUrl" :alt="data.tonight.title" /></div>
                 <div class="col-md-6 p-4 p-xl-5 d-flex flex-column justify-content-center">
                   <p class="eyebrow">Tonight's dinner</p>
@@ -55,6 +55,12 @@ async function replaceDinner() {
                   <div class="d-flex flex-wrap gap-2 mb-4"><span class="soft-badge">{{ data.tonight.cookTime }} min</span><span class="soft-badge">${{ data.tonight.estimatedCost.toFixed(2) }}</span><span class="soft-badge">{{ data.tonight.difficulty }}</span></div>
                   <div class="d-flex flex-wrap gap-2"><RouterLink class="btn btn-primary rounded-pill px-4" :to="`/recipes/${data.tonight.id}`">View recipe</RouterLink><button class="btn btn-outline-primary rounded-pill px-4" type="button" @click="replaceOpen = true">Replace</button></div>
                 </div>
+              </div>
+              <div v-else class="empty-state h-100 d-flex flex-column align-items-center justify-content-center p-5 text-center">
+                <p class="eyebrow">Tonight's dinner</p>
+                <h2>No dinner planned yet.</h2>
+                <p class="text-secondary">Add a dinner to today's meal-plan slot.</p>
+                <RouterLink class="btn btn-primary rounded-pill px-4" to="/calendar">Plan dinner</RouterLink>
               </div>
             </article>
           </div>

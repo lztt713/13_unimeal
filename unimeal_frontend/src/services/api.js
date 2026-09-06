@@ -1,100 +1,37 @@
 import axios from 'axios'
-import { dashboard, dashboardRecipes } from '../mock/dashboard'
-import { recipes } from '../mock/recipes'
-import { ingredients } from '../mock/ingredients'
-import { budgetSummary, weeklyPlan } from '../mock/planning'
+import { recipes as mockRecipes } from '../mock/recipes'
 import { adminOverview, currentUser } from '../mock/users'
 
 export const http = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '/api', timeout: 8000 })
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
-const purchasedShoppingItemKeys = new Set()
-const contributorRecipeIds = new Set([1, 2, 3])
+const responseData = async (request) => (await request).data
 
-function mergedShoppingItems(recipeIds) {
-  const items = new Map()
-  recipes.filter((recipe) => recipeIds.includes(recipe.id)).forEach((recipe) => {
-    recipe.ingredientDetails.forEach((ingredient) => {
-      const key = `${ingredient.ingredientId}-${ingredient.unit}`
-      const current = items.get(key) || { ...ingredient, totalQuantity: 0, estimatedCost: 0, purchased: purchasedShoppingItemKeys.has(key) }
-      current.totalQuantity += ingredient.quantity
-      current.estimatedCost += 1.2
-      items.set(key, current)
-    })
-  })
-  return [...items.values()]
-}
-
-// Replace these mock implementations with http.get(...) once FastAPI endpoints are available.
 export const api = {
-  async getDashboard() {
-    const now = new Date()
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const tonightEntry = weeklyPlan.entries.find((entry) => entry.plannedDate === today && entry.mealType === 'Dinner')
-    const tonight = recipes.find((recipe) => recipe.id === tonightEntry?.recipeId) || dashboardRecipes.tonight
-    return clone({ ...dashboard, ...dashboardRecipes, favourites: recipes.filter((recipe) => dashboard.favouriteRecipeIds.includes(recipe.id)), tonight })
-  },
-  async getRecipes() { return clone(recipes) },
-  async getRecipe(recipeId) {
-    return clone(recipes.find((recipe) => recipe.id === Number(recipeId)) || null)
-  },
-  async getIngredients() { return clone(ingredients) },
-  async createRecipe(recipe) {
-    const savedRecipe = { ...clone(recipe), id: Date.now(), authorId: currentUser.id, status: 'Draft', rating: 0, reviewCount: 0, comments: [] }
-    recipes.unshift(savedRecipe)
-    contributorRecipeIds.add(savedRecipe.id)
-    return clone(savedRecipe)
-  },
-  async updateRecipe(recipeId, recipe) {
-    const index = recipes.findIndex((item) => item.id === Number(recipeId))
-    if (index < 0) throw new Error('Recipe not found')
-    recipes[index] = { ...recipes[index], ...clone(recipe), id: recipes[index].id }
-    return clone(recipes[index])
-  },
-  async getMyRecipes() { return clone(recipes.filter((recipe) => contributorRecipeIds.has(recipe.id))) },
+  async getDashboard() { return responseData(http.get('/dashboard')) },
+  async getRecipes(params = {}) { return responseData(http.get('/recipes', { params })) },
+  async getRecipe(recipeId) { return responseData(http.get(`/recipes/${Number(recipeId)}`)) },
+  async getIngredients() { return responseData(http.get('/ingredients')) },
+  async createRecipe(recipe) { return responseData(http.post('/recipes', recipe)) },
+  async updateRecipe(recipeId, recipe) { return responseData(http.put(`/recipes/${Number(recipeId)}`, recipe)) },
+  async getMyRecipes() { return responseData(http.get('/my-recipes')) },
   async toggleRecipePublication(recipeId) {
-    const recipe = recipes.find((item) => item.id === Number(recipeId))
-    if (!recipe) throw new Error('Recipe not found')
-    recipe.status = recipe.status === 'Published' ? 'Draft' : 'Published'
-    return clone(recipe)
+    const recipe = await this.getRecipe(recipeId)
+    const status = recipe.status === 'Published' ? 'Draft' : 'Published'
+    return this.updateRecipe(recipeId, { status })
   },
-  async deleteMyRecipe(recipeId) {
-    const index = recipes.findIndex((item) => item.id === Number(recipeId))
-    if (index >= 0) recipes.splice(index, 1)
-    contributorRecipeIds.delete(Number(recipeId))
-    return clone({ id: Number(recipeId) })
-  },
-  async addRecipeRating(recipeId, rating) {
-    const recipe = recipes.find((item) => item.id === Number(recipeId))
-    if (!recipe) throw new Error('Recipe not found')
-    recipe.rating = Number(((recipe.rating * recipe.reviewCount + rating) / (recipe.reviewCount + 1)).toFixed(1))
-    recipe.reviewCount += 1
-    return clone(recipe)
-  },
-  async getMealPlan() { return clone(weeklyPlan) },
+  async deleteMyRecipe(recipeId) { return responseData(http.delete(`/recipes/${Number(recipeId)}`)) },
+  async addRecipeRating(recipeId, rating) { return responseData(http.post(`/recipes/${Number(recipeId)}/ratings`, { rating })) },
+  async getMealPlan(weekStart) { return responseData(http.get('/meal-plan', { params: weekStart ? { week_start: weekStart } : {} })) },
   async saveMealPlanEntry(entry) {
-    const existing = weeklyPlan.entries.find((item) => item.plannedDate === entry.plannedDate && item.mealType === entry.mealType)
-    if (existing) Object.assign(existing, { ...entry, id: existing.id })
-    else weeklyPlan.entries.push({ ...entry, id: Date.now() })
-    return clone(weeklyPlan)
+    return entry.id
+      ? responseData(http.put(`/meal-plan/entries/${Number(entry.id)}`, entry))
+      : responseData(http.post('/meal-plan/entries', entry))
   },
-  async removeMealPlanEntry(entryId) {
-    const index = weeklyPlan.entries.findIndex((item) => item.id === entryId)
-    if (index >= 0) weeklyPlan.entries.splice(index, 1)
-    return clone(weeklyPlan)
-  },
-  async getShoppingList() {
-    const recipeIds = [...new Set(weeklyPlan.entries.map((entry) => entry.recipeId))]
-    const items = mergedShoppingItems(recipeIds)
-    return clone({ id: 1, recipeIds, status: 'active', items, totalEstimatedCost: items.reduce((sum, item) => sum + item.estimatedCost, 0) })
-  },
-  async toggleShoppingItem(ingredientId, unit) {
-    const key = `${ingredientId}-${unit}`
-    if (purchasedShoppingItemKeys.has(key)) purchasedShoppingItemKeys.delete(key)
-    else purchasedShoppingItemKeys.add(key)
-    return this.getShoppingList()
-  },
-  async getBudgetSummary() { return clone(budgetSummary) },
+  async removeMealPlanEntry(entryId) { return responseData(http.delete(`/meal-plan/entries/${Number(entryId)}`)) },
+  async getShoppingList(weekStart) { return responseData(http.post('/shopping-list/generate', null, { params: weekStart ? { week_start: weekStart } : {} })) },
+  async toggleShoppingItem(itemId) { return responseData(http.patch(`/shopping-list/items/${Number(itemId)}/purchased`)) },
+  async getBudgetSummary() { return responseData(http.get('/budget-summary')) },
   async getCurrentUser() { return clone(currentUser) },
   async signIn({ email, role }) {
     Object.assign(currentUser, { email: email || currentUser.email, role: role || currentUser.role })
@@ -111,14 +48,14 @@ export const api = {
     if (report) report.status = status
     return clone(adminOverview)
   },
-  async getAdminManagement() { return clone({ users: adminOverview.users, recipes }) },
+  async getAdminManagement() { return clone({ users: adminOverview.users, recipes: mockRecipes }) },
   async updateUser(userId, update) {
     const user = adminOverview.users.find((item) => item.id === Number(userId))
     if (user) Object.assign(user, update)
     return this.getAdminManagement()
   },
   async updateAdminRecipeStatus(recipeId, status) {
-    const recipe = recipes.find((item) => item.id === Number(recipeId))
+    const recipe = mockRecipes.find((item) => item.id === Number(recipeId))
     if (recipe) recipe.status = status
     return this.getAdminManagement()
   },
@@ -136,16 +73,12 @@ export const api = {
     return this.getIngredientCategories()
   },
   async toggleSavedRecipe(recipeId) {
-    const id = Number(recipeId)
-    const index = dashboard.favouriteRecipeIds.indexOf(id)
-    if (index >= 0) dashboard.favouriteRecipeIds.splice(index, 1)
-    else dashboard.favouriteRecipeIds.push(id)
-    return clone({ saved: index < 0 })
+    return responseData(http.post(`/recipes/${Number(recipeId)}/saved`))
   },
-  async getSavedRecipeIds() { return clone(dashboard.favouriteRecipeIds) },
+  async getSavedRecipeIds() { return responseData(http.get('/saved-recipes')) },
   async getAiRecommendation(query) {
     const normalized = query.trim().toLowerCase()
-    const matches = recipes.filter((recipe) => [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags].join(' ').toLowerCase().includes(normalized) || recipe.dietaryTags.some((tag) => normalized.includes(tag.toLowerCase())))
-    return clone({ query, mode: 'mock', summary: 'Based on your request, these recipes balance cost, time and dietary tags.', recipes: matches.length ? matches.slice(0, 3) : recipes.filter((recipe) => recipe.estimatedCost <= 5).slice(0, 3), cautions: ['Check ingredient labels against your allergies.', 'Estimated costs can vary by supermarket.'] })
+    const matches = mockRecipes.filter((recipe) => [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags].join(' ').toLowerCase().includes(normalized) || recipe.dietaryTags.some((tag) => normalized.includes(tag.toLowerCase())))
+    return clone({ query, mode: 'mock', summary: 'Based on your request, these recipes balance cost, time and dietary tags.', recipes: matches.length ? matches.slice(0, 3) : mockRecipes.filter((recipe) => recipe.estimatedCost <= 5).slice(0, 3), cautions: ['Check ingredient labels against your allergies.', 'Estimated costs can vary by supermarket.'] })
   },
 }
