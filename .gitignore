@@ -129,6 +129,9 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Visual Studio local workspace state
+.vs/
+
 # pnpm
 .pnpm-store
 
@@ -145,3 +148,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.egg-info/
+.venv/
+venv/

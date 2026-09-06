@@ -1,85 +1,59 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { api } from './services/api'
+
+const navOpen = ref(false)
+const route = useRoute()
+const user = ref(null)
+const baseItems = [
+  { label: 'Home', to: '/' }, { label: 'Dashboard', to: '/dashboard' }, { label: 'Recipes', to: '/recipes' },
+  { label: 'Calendar', to: '/calendar' }, { label: 'Shopping List', to: '/shopping-list' }, { label: 'Budget', to: '/budget' }, { label: 'AI Helper', to: '/ai-helper' },
+]
+const navItems = computed(() => {
+  const role = user.value?.role
+  const items = [...baseItems]
+  if (role === 'contributor' || role === 'administrator') items.splice(3, 0, { label: 'My Recipes', to: '/my-recipes' }, { label: 'Submit', to: '/submit-recipe' })
+  if (role === 'administrator') items.push({ label: 'Admin', to: '/admin' })
+  return items
+})
+async function refreshUser() { user.value = await api.getCurrentUser() }
+onMounted(refreshUser)
+watch(() => route.fullPath, refreshUser)
+const closeNav = () => {
+  navOpen.value = false
+}
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
+  <header class="app-header sticky-top">
+    <nav class="navbar navbar-expand-lg container py-3" aria-label="Main navigation">
+      <RouterLink class="navbar-brand d-flex align-items-center gap-2" to="/" @click="closeNav">
+        <span class="brand-mark" aria-hidden="true">U</span>
+        <span>UniMeal</span>
+      </RouterLink>
+      <button
+        class="navbar-toggler border-0 shadow-none"
+        type="button"
+        aria-controls="main-nav"
+        :aria-expanded="navOpen"
+        aria-label="Toggle navigation"
+        @click="navOpen = !navOpen"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div id="main-nav" class="collapse navbar-collapse" :class="{ show: navOpen }">
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+          <li v-for="item in navItems" :key="item.to" class="nav-item">
+            <RouterLink class="nav-link px-3" :to="item.to" @click="closeNav">{{ item.label }}</RouterLink>
+          </li>
+        </ul>
+        <RouterLink class="student-avatar ms-lg-3" to="/profile" title="Profile">{{ user?.displayName?.charAt(0) || 'U' }}</RouterLink>
+      </div>
+    </nav>
   </header>
 
-  <RouterView />
+  <main class="app-main">
+    <RouterView />
+  </main>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
