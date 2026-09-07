@@ -73,6 +73,8 @@ class User(Base):
     saved_recipes = relationship("Recipe", secondary=saved_recipes, back_populates="saved_by")
     ratings = relationship("RecipeRating", back_populates="user", cascade="all, delete-orphan")
     budget_periods = relationship("BudgetPeriod", back_populates="user")
+    meal_plans = relationship("MealPlan", back_populates="user", cascade="all, delete-orphan")
+    shopping_lists = relationship("ShoppingList", back_populates="user", cascade="all, delete-orphan")
 
 
 class Cuisine(Base):
@@ -121,6 +123,7 @@ class MeasurementUnit(Base):
 
     ingredients = relationship("Ingredient", back_populates="default_measurement_unit")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="measurement_unit")
+    shopping_list_items = relationship("ShoppingListItem", back_populates="measurement_unit")
 
 
 class Ingredient(Base):
@@ -142,6 +145,7 @@ class Ingredient(Base):
     category = relationship("IngredientCategory", back_populates="ingredients")
     default_measurement_unit = relationship("MeasurementUnit", back_populates="ingredients")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="ingredient")
+    shopping_list_items = relationship("ShoppingListItem", back_populates="ingredient")
 
 
 class Recipe(Base):
@@ -255,7 +259,9 @@ class MealPlan(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+    user = relationship("User", back_populates="meal_plans")
     entries = relationship("MealPlanEntry", back_populates="meal_plan", cascade="all, delete-orphan")
+    shopping_lists = relationship("ShoppingList", back_populates="meal_plan")
 
 
 class MealPlanEntry(Base):
@@ -273,3 +279,55 @@ class MealPlanEntry(Base):
 
     meal_plan = relationship("MealPlan", back_populates="entries")
     recipe = relationship("Recipe")
+
+
+class ShoppingList(Base):
+    """Persisted shopping list generated from a meal plan."""
+
+    __tablename__ = "shopping_lists"
+
+    shopping_list_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    meal_plan_id = Column(BigInteger, ForeignKey("meal_plans.meal_plan_id", ondelete="SET NULL"))
+    list_name = Column(String(100), nullable=False, default="Shopping list")
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    user = relationship("User", back_populates="shopping_lists")
+    meal_plan = relationship("MealPlan", back_populates="shopping_lists")
+    items = relationship(
+        "ShoppingListItem",
+        back_populates="shopping_list",
+        cascade="all, delete-orphan",
+        order_by="ShoppingListItem.shopping_list_item_id",
+    )
+
+
+class ShoppingListItem(Base):
+    """One merged ingredient line in a persisted shopping list."""
+
+    __tablename__ = "shopping_list_items"
+
+    shopping_list_item_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    shopping_list_id = Column(
+        BigInteger,
+        ForeignKey("shopping_lists.shopping_list_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ingredient_id = Column(BigInteger, ForeignKey("ingredients.ingredient_id", ondelete="SET NULL"))
+    measurement_unit_id = Column(
+        SmallInteger,
+        ForeignKey("measurement_units.measurement_unit_id"),
+        nullable=False,
+    )
+    item_name = Column(String(160), nullable=False)
+    quantity = Column(Numeric(10, 3), nullable=False)
+    estimated_unit_cost = Column(Numeric(10, 2))
+    actual_cost = Column(Numeric(10, 2))
+    is_purchased = Column(Boolean, nullable=False, default=False)
+    purchased_at = Column(DateTime)
+
+    shopping_list = relationship("ShoppingList", back_populates="items")
+    ingredient = relationship("Ingredient", back_populates="shopping_list_items")
+    measurement_unit = relationship("MeasurementUnit", back_populates="shopping_list_items")
