@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
-import PlaceholderView from '../views/PlaceholderView.vue'
 import RecipeListView from '../views/RecipeListView.vue'
 import RecipeDetailView from '../views/RecipeDetailView.vue'
 import RecipeSubmissionView from '../views/RecipeSubmissionView.vue'
@@ -12,6 +11,7 @@ import AuthView from '../views/AuthView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import AiHelperView from '../views/AiHelperView.vue'
+import NotificationsView from '../views/NotificationsView.vue'
 import MyRecipesView from '../views/MyRecipesView.vue'
 import AdminManagementView from '../views/AdminManagementView.vue'
 import { api } from '../services/api'
@@ -22,26 +22,83 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/login', name: 'login', component: AuthView, props: { mode: 'login' } },
     { path: '/register', name: 'register', component: AuthView, props: { mode: 'register' } },
-    { path: '/profile', name: 'profile', component: ProfileView },
-    { path: '/dashboard', name: 'dashboard', component: DashboardView },
-    { path: '/recipes', name: 'recipes', component: RecipeListView },
-    { path: '/recipes/:id', name: 'recipe-detail', component: RecipeDetailView, props: true },
-    { path: '/submit-recipe', name: 'recipe-submission', component: RecipeSubmissionView, meta: { roles: ['contributor', 'administrator'] } },
-    { path: '/my-recipes', name: 'my-recipes', component: MyRecipesView, meta: { roles: ['contributor', 'administrator'] } },
-    { path: '/calendar', name: 'calendar', component: MealCalendarView },
-    { path: '/shopping-list', name: 'shopping-list', component: ShoppingListView },
-    { path: '/budget', name: 'budget', component: BudgetSummaryView },
-    { path: '/admin', name: 'admin', component: AdminDashboardView, meta: { roles: ['administrator'] } },
-    { path: '/admin/manage', name: 'admin-management', component: AdminManagementView, meta: { roles: ['administrator'] } },
-    { path: '/ai-helper', name: 'ai-helper', component: AiHelperView },
-    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
+    { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: DashboardView,
+      meta: { roles: ['student'] },
+    },
+    { path: '/recipes', name: 'recipes', component: RecipeListView, meta: { requiresAuth: true } },
+    {
+      path: '/recipes/:id',
+      name: 'recipe-detail',
+      component: RecipeDetailView,
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/submit-recipe',
+      name: 'recipe-submission',
+      component: RecipeSubmissionView,
+      meta: { roles: ['contributor'] },
+    },
+    {
+      path: '/my-recipes',
+      name: 'my-recipes',
+      component: MyRecipesView,
+      meta: { roles: ['contributor'] },
+    },
+    {
+      path: '/calendar',
+      name: 'calendar',
+      component: MealCalendarView,
+      meta: { roles: ['student'] },
+    },
+    {
+      path: '/shopping-list',
+      name: 'shopping-list',
+      component: ShoppingListView,
+      meta: { roles: ['student'] },
+    },
+    { path: '/budget', name: 'budget', component: BudgetSummaryView, meta: { roles: ['student'] } },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboardView,
+      meta: { roles: ['administrator'] },
+    },
+    {
+      path: '/admin/manage',
+      name: 'admin-management',
+      component: AdminManagementView,
+      meta: { roles: ['administrator'] },
+    },
+    {
+      path: '/ai-helper',
+      name: 'ai-helper',
+      component: AiHelperView,
+      meta: { roles: ['student'] },
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: NotificationsView,
+      meta: { roles: ['student'] },
+    },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 
 router.beforeEach(async (to) => {
-  if (!to.meta.roles) return true
+  if (!to.meta.requiresAuth && !to.meta.roles) return true
   const user = await api.getCurrentUser()
-  return to.meta.roles.includes(user.role) ? true : { name: 'dashboard' }
+  if (!user) return { name: 'login', query: { redirect: to.fullPath } }
+  if (!to.meta.roles) return true
+  if (to.meta.roles.includes(user.role)) return true
+  if (user.role === 'administrator') return { name: 'admin' }
+  if (user.role === 'contributor') return { name: 'my-recipes' }
+  return { name: 'dashboard' }
 })
 
 export default router
