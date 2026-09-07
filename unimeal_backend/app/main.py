@@ -7,7 +7,7 @@ Run with:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import dashboard, recipes
+from app.routers import dashboard, planning, recipes
 
 app = FastAPI(
     title="UniMeal API",
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(recipes.router)
+app.include_router(planning.router)
 app.include_router(dashboard.router)
 
 
