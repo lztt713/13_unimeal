@@ -51,6 +51,6 @@ Open [the development frontend](http://127.0.0.1:5173). API requests are proxied
 - `unimeal_frontend/` — Vue application.
 - `unimeal_backend/` — FastAPI application and tests.
 - `database/` — Schema, sample data, and migrations.
-- `docs/` — Database documentation and [integration verification](docs/qa/LOCAL_INTEGRATION_REPORT.md).
+- `docs/` — Project documentation.
 
 This is a local prototype for continued development. Budget estimates use stored ingredient prices; recipe suggestions use local rules.
