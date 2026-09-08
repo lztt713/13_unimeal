@@ -31,8 +31,6 @@ Register a new student or contributor account in the app. Sample account passwor
 .\.venv\Scripts\python.exe unimeal_backend/create_local_account.py --email admin@unimeal.test --name "Administrator" --role administrator
 ```
 
-For missing recipe images, ingredients, and steps, see the [recipe data completion notes](docs/database/RECIPE_DATA_COMPLETION.md).
-
 ## Development
 
 After completing setup, stop the launcher and run these commands in separate terminals:
