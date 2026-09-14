@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.auth import student_user
 from app.models import (
     BudgetPeriod,
     MealPlan,
@@ -17,8 +18,8 @@ from app.models import (
     Recipe,
     ShoppingList,
     ShoppingListItem,
+    User,
 )
-from app.routers.recipes import DEFAULT_STUDENT_EMAIL, _get_user_by_email
 from app.schemas import (
     BudgetSummaryResponse,
     MealPlanEntryWrite,
@@ -97,32 +98,38 @@ def _validate_slot(payload: MealPlanEntryWrite, week_start_date: date) -> str:
         raise HTTPException(status_code=400, detail="Planned date must be inside the selected week")
     return meal_type
 
-#  Get a weekly meal plan.
+# LZTT: Get the authenticated student's weekly meal plan. / 获取当前登录学生的周饮食计划。
 @router.get("/meal-plan", response_model=MealPlanResponse)
 def get_meal_plan(
     week_start: date | None = Query(default=None),
     db: Session = Depends(get_db),
+    student: User = Depends(student_user),
 ):
 
-    # Return the requested week for the default test student without creating
+    # Return the requested week for the authenticated student without creating
     # an empty database record when no plan exists.
-
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     week_start_date = _resolve_week_start(week_start)
     return _plan_response(_find_plan(db, student.user_id, week_start_date), week_start_date)
 
-# Create or replace a meal slot.
+# LZTT: Create or replace a meal-plan entry. / 新增或替换饮食计划条目。
 @router.post("/meal-plan/entries", response_model=MealPlanResponse)
-def save_meal_plan_entry(payload: MealPlanEntryWrite, db: Session = Depends(get_db)):
+def save_meal_plan_entry(
+    payload: MealPlanEntryWrite,
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
 
     # Create a meal-plan entry, or replace the recipe and servings already
     # assigned to the same date and meal type.
 
-    #  Use the authenticated user after login is implemented.
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     week_start_date = _week_start(payload.planned_date)
     meal_type = _validate_slot(payload, week_start_date)
-    if db.get(Recipe, payload.recipe_id) is None:
+    if (
+        db.query(Recipe)
+        .filter(Recipe.recipe_id == payload.recipe_id, Recipe.status == "published")
+        .first()
+        is None
+    ):
         raise HTTPException(status_code=404, detail="Recipe not found")
 
     plan = _get_or_create_plan(db, student.user_id, week_start_date)
@@ -153,13 +160,18 @@ def save_meal_plan_entry(payload: MealPlanEntryWrite, db: Session = Depends(get_
     plan.updated_at = datetime.now()
     db.commit()
     db.refresh(plan)
+    _sync_existing_shopping_list(db, student.user_id, plan)
+
     return _plan_response(plan, week_start_date)
 
-# Update an existing meal slot.
+# LZTT: Update an entry owned by the current student. / 修改当前学生的饮食计划条目。
 @router.put("/meal-plan/entries/{entry_id}", response_model=MealPlanResponse)
-def update_meal_plan_entry(entry_id: int, payload: MealPlanEntryWrite, db: Session = Depends(get_db)):
-
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
+def update_meal_plan_entry(
+    entry_id: int,
+    payload: MealPlanEntryWrite,
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
     entry = (
         db.query(MealPlanEntry)
         .join(MealPlan)
@@ -170,7 +182,12 @@ def update_meal_plan_entry(entry_id: int, payload: MealPlanEntryWrite, db: Sessi
         raise HTTPException(status_code=404, detail="Meal-plan entry not found")
     week_start_date = entry.meal_plan.week_start_date
     meal_type = _validate_slot(payload, week_start_date)
-    if db.get(Recipe, payload.recipe_id) is None:
+    if (
+        db.query(Recipe)
+        .filter(Recipe.recipe_id == payload.recipe_id, Recipe.status == "published")
+        .first()
+        is None
+    ):
         raise HTTPException(status_code=404, detail="Recipe not found")
 
     #  Check the updated slot for conflicts.
@@ -195,13 +212,17 @@ def update_meal_plan_entry(entry_id: int, payload: MealPlanEntryWrite, db: Sessi
     entry.meal_plan.updated_at = datetime.now()
     db.commit()
     db.refresh(entry.meal_plan)
+    _sync_existing_shopping_list(db, student.user_id, entry.meal_plan)
     return _plan_response(entry.meal_plan, week_start_date)
 
-#  Delete an existing meal slot.
-@router.delete("/meal-plan/entries/{entry_id}", response_model=MealPlanResponse)
-def delete_meal_plan_entry(entry_id: int, db: Session = Depends(get_db)):
 
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
+# LZTT: Delete an entry owned by the current student. / 删除当前学生的饮食计划条目。
+@router.delete("/meal-plan/entries/{entry_id}", response_model=MealPlanResponse)
+def delete_meal_plan_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
     entry = (
         db.query(MealPlanEntry)
         .join(MealPlan)
@@ -216,7 +237,29 @@ def delete_meal_plan_entry(entry_id: int, db: Session = Depends(get_db)):
     plan.updated_at = datetime.now()
     db.commit()
     db.refresh(plan)
+    _sync_existing_shopping_list(db, student.user_id, plan)
     return _plan_response(plan, week_start_date)
+
+
+# LZTT: Synchronise an existing shopping list after the meal plan changes.
+# 梁子豪：Meal Plan改变后，同步已经存在的购物清单。
+def _sync_existing_shopping_list(
+    db: Session,
+    user_id: int,
+    plan: MealPlan,
+):
+    existing_list = (
+        db.query(ShoppingList)
+        .filter(
+            ShoppingList.user_id == user_id,
+            ShoppingList.meal_plan_id == plan.meal_plan_id,
+            ShoppingList.status == "active",
+        )
+        .first()
+    )
+
+    if existing_list is not None:
+        _generate_shopping_list(db, user_id, plan)
 
 
 def _shopping_response(shopping_list: ShoppingList | None, plan: MealPlan | None) -> dict:
@@ -327,30 +370,61 @@ def _generate_shopping_list(db: Session, user_id: int, plan: MealPlan | None) ->
         item.quantity = values["quantity"]
         item.estimated_unit_cost = ingredient.estimated_unit_cost
 
-    # Remove items no longer required by the current plan.
+    # Move obsolete purchased items to a completed history list. This keeps
+    # the active list in sync without deleting spending used by the budget.
+    history_list = None
     for obsolete in existing.values():
-        db.delete(obsolete)
+        if obsolete.is_purchased:
+            if history_list is None:
+                history_list = (
+                    db.query(ShoppingList)
+                    .filter(
+                        ShoppingList.user_id == user_id,
+                        ShoppingList.meal_plan_id == plan.meal_plan_id,
+                        ShoppingList.status == "completed",
+                    )
+                    .order_by(ShoppingList.shopping_list_id.desc())
+                    .first()
+                )
+                if history_list is None:
+                    history_list = ShoppingList(
+                        user_id=user_id,
+                        meal_plan_id=plan.meal_plan_id,
+                        list_name=f"Purchase history for {plan.week_start_date.isoformat()}",
+                        status="completed",
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    db.add(history_list)
+                    db.flush()
+            obsolete.shopping_list_id = history_list.shopping_list_id
+            history_list.updated_at = now
+        else:
+            db.delete(obsolete)
     shopping_list.updated_at = now
     db.commit()
     db.refresh(shopping_list)
     return _shopping_response(shopping_list, plan)
 
 
+# LZTT: Generate and save a shopping list from the weekly plan. / 根据周计划生成并保存购物清单。
 @router.post("/shopping-list/generate", response_model=PersistedShoppingListResponse)
 def generate_shopping_list(
     week_start: date | None = Query(default=None),
     db: Session = Depends(get_db),
+    student: User = Depends(student_user),
 ):
-
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     plan = _find_plan(db, student.user_id, _resolve_week_start(week_start))
     return _generate_shopping_list(db, student.user_id, plan)
 
 
+# LZTT: Toggle an item's purchased state for the current student. / 切换当前学生购物项的购买状态。
 @router.patch("/shopping-list/items/{item_id}/purchased", response_model=PersistedShoppingListResponse)
-def toggle_shopping_item(item_id: int, db: Session = Depends(get_db)):
-
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
+def toggle_shopping_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
     item = (
         db.query(ShoppingListItem)
         .join(ShoppingList)
@@ -395,14 +469,7 @@ def _budget_period(db: Session, user_id: int, reference_date: date) -> BudgetPer
         .order_by(BudgetPeriod.period_start.desc())
         .first()
     )
-    if active is not None:
-        return active
-    return (
-        db.query(BudgetPeriod)
-        .filter(BudgetPeriod.user_id == user_id)
-        .order_by(BudgetPeriod.period_start.desc())
-        .first()
-    )
+    return active
 
 
 def budget_summary_for_user(db: Session, user_id: int, reference_date: date | None = None) -> dict:
@@ -413,23 +480,24 @@ def budget_summary_for_user(db: Session, user_id: int, reference_date: date | No
         start_date = _week_start(reference_date)
         end_date = start_date + timedelta(days=6)
         budget_amount = 0.0
-        purchased_items = []
     else:
         start_date = period.period_start
         end_date = period.period_end
         budget_amount = float(period.budget_amount)
-        # Include only purchased items within the budget period.
-        purchased_items = (
-            db.query(ShoppingListItem)
-            .join(ShoppingList)
-            .filter(
-                ShoppingList.user_id == user_id,
-                ShoppingListItem.is_purchased.is_(True),
-                ShoppingListItem.purchased_at >= datetime.combine(start_date, time.min),
-                ShoppingListItem.purchased_at < datetime.combine(end_date + timedelta(days=1), time.min),
-            )
-            .all()
+
+    # Spending is still reported for the current week when a user has not yet
+    # created a budget period.
+    purchased_items = (
+        db.query(ShoppingListItem)
+        .join(ShoppingList)
+        .filter(
+            ShoppingList.user_id == user_id,
+            ShoppingListItem.is_purchased.is_(True),
+            ShoppingListItem.purchased_at >= datetime.combine(start_date, time.min),
+            ShoppingListItem.purchased_at < datetime.combine(end_date + timedelta(days=1), time.min),
         )
+        .all()
+    )
 
     # Group uncategorized ingredients under Other.
     categories: dict[str, float] = defaultdict(float)
@@ -456,8 +524,10 @@ def budget_summary_for_user(db: Session, user_id: int, reference_date: date | No
     }
 
 
+# LZTT: Calculate the current student's budget and actual spending. / 计算当前学生的预算与实际支出。
 @router.get("/budget-summary", response_model=BudgetSummaryResponse)
-def get_budget_summary(db: Session = Depends(get_db)):
-
-    student = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
+def get_budget_summary(
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
     return budget_summary_for_user(db, student.user_id)
