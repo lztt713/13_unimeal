@@ -154,9 +154,3 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-
-# Local run logs and process metadata
-.local/
-
-# Local test cache
-.pytest_cache/

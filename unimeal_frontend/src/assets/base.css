@@ -1,13 +1,13 @@
 :root {
-  --um-green: #2f624d;
-  --um-green-dark: #244b3b;
-  --um-green-light: #e5f0ea;
-  --um-coral: #c96f4e;
-  --um-cream: #e9f0eb;
-  --um-ink: #24332b;
-  --um-muted: #65736b;
-  --um-line: #dce4df;
-  --um-radius: .5rem;
+  --um-green: #31572c;
+  --um-green-dark: #243f20;
+  --um-green-light: #dbe8d7;
+  --um-coral: #e76f51;
+  --um-cream: #f7f4ed;
+  --um-ink: #243024;
+  --um-muted: #687268;
+  --um-line: #e8e4d9;
+  --um-radius: 1.25rem;
 }
 
 * { box-sizing: border-box; }

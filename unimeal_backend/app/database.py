@@ -1,30 +1,17 @@
 """Database connection and session management."""
 
-import os
-from pathlib import Path
 from pathlib import Path
 
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
-from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or URL.create(
-    "mysql+pymysql",
-    username=os.getenv("DB_USER", "root"),
-    password=os.getenv("DB_PASSWORD", ""),
-    host=os.getenv("DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("DB_PORT", "3306")),
-    database=os.getenv("DB_NAME", "unimeal_planner"),
-    query={"charset": "utf8mb4"},
-)
+# Place the database next to this file so path is consistent regardless of cwd
+DB_PATH = Path(__file__).resolve().parent.parent / "unimeal.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
+    connect_args={"check_same_thread": False},  # needed for SQLite
     echo=False,
 )
 
