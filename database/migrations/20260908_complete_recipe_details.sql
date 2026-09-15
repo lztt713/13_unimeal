@@ -1,5 +1,6 @@
 -- Fill missing seed recipe details only. Existing lines, servings and prices are preserved.
 -- Images are bundled under unimeal_frontend/public/images/recipes.
+SET SQL_SAFE_UPDATES = 0;
 USE unimeal_planner;
 START TRANSACTION;
 

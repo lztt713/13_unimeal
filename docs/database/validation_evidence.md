@@ -30,35 +30,6 @@ Initial import on MySQL 26.7.0 identified a conflict between the report-review `
 
 No credentials or real user data are included in this evidence.
 
-## Frontend-alignment runtime validation
+## Frontend-alignment follow-up
 
-- Date: 2026-08-23
-- Database: local MySQL Community Server 26.7.0
-- Schema: `unimeal_planner`
-
-The following scripts were run successfully against the existing local database:
-
-1. `database/migrations/20260823_frontend_alignment.sql`
-2. `database/sample_data.sql`
-3. `database/validation_queries.sql`
-
-### Upgrade result
-
-- The database still contains 26 base tables.
-- `recipes.image_url` was added.
-- `ingredients.estimated_unit_cost` was added with a non-negative `CHECK` constraint.
-- `vw_recipe_cards` was created successfully.
-- The view returned 8 published recipe cards, including the six records used by the current frontend preview.
-
-### Constraint results
-
-| Rule | Result |
-| --- | --- |
-| Duplicate user email is rejected | PASS |
-| Preference with a missing user is rejected | PASS |
-| Recipe rating outside 1-5 is rejected | PASS |
-| Recipe ingredient quantity of zero is rejected | PASS |
-| Ingredient reference unit cost below zero is rejected | PASS |
-| Purchased shopping item without a timestamp is rejected | PASS |
-
-No credentials or real user data are included in this evidence.
+The later frontend-alignment update adds `recipes.image_url`, `ingredients.estimated_unit_cost`, a recipe-card read view, and a sixth validation rule for a negative ingredient reference cost. This Week 4 record remains historical evidence for the original five checks; run the migration and the current validation script again before recording a new runtime result.

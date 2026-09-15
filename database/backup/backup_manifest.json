@@ -1,0 +1,40 @@
+{
+  "exported_at": "2026-09-08T04:52:42.550389+08:00",
+  "database": "unimeal_planner",
+  "table_count": 26,
+  "row_counts": {
+    "allergies": 3,
+    "budget_periods": 2,
+    "content_reports": 0,
+    "cuisines": 8,
+    "dietary_tags": 5,
+    "ingredient_allergens": 1,
+    "ingredient_categories": 5,
+    "ingredients": 20,
+    "meal_plan_entries": 2,
+    "meal_plans": 2,
+    "measurement_units": 8,
+    "notifications": 1,
+    "pantry_items": 1,
+    "recipe_comments": 1,
+    "recipe_dietary_tags": 1,
+    "recipe_ingredients": 6,
+    "recipe_ratings": 1,
+    "recipe_steps": 2,
+    "recipes": 8,
+    "roles": 3,
+    "saved_recipes": 1,
+    "shopping_list_items": 2,
+    "shopping_lists": 1,
+    "user_allergies": 0,
+    "user_dietary_preferences": 1,
+    "users": 5
+  },
+  "views": [
+    "vw_recipe_cards"
+  ],
+  "dump_sha256": "33d8e3d8059486f11fded39640957f1c59365cd828fdb1da7ae0a58f9c72d185",
+  "dump_bytes": 42338,
+  "method": "mysqldump --single-transaction",
+  "credentials_included": false
+}
