@@ -30,8 +30,8 @@ async function submit() {
         ? router.currentRoute.value.query.redirect
         : defaultRoute,
     )
-  } catch {
-    error.value = 'We could not complete that request. Please try again.'
+  } catch (err) {
+    error.value = err.message
   } finally {
     saving.value = false
   }
@@ -82,6 +82,8 @@ async function submit() {
                   v-model="form.password"
                   class="form-control"
                   type="password"
+                  :minlength="isRegister ? 8 : 1"
+                  :autocomplete="isRegister ? 'new-password' : 'current-password'"
                 />
               </div>
               <button class="btn btn-primary rounded-pill w-100 py-2" :disabled="saving">

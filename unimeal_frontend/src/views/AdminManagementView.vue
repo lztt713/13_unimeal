@@ -40,8 +40,7 @@ onMounted(load)
         <p class="eyebrow">Administrator workspace</p>
         <h1 class="page-title">Manage platform data.</h1>
         <p class="page-subtitle">
-          Mock controls mirror the user, recipe and ingredient-category tables in the current
-          schema.
+          Manage users, recipe visibility and ingredient categories.
         </p>
       </div>
       <div v-if="!management" class="py-5 text-center text-secondary">Loading platform data...</div>
@@ -132,7 +131,7 @@ onMounted(load)
                   >
                     <option>Published</option>
                     <option>Draft</option>
-                    <option>Hidden</option>
+                    <option>Archived</option>
                   </select>
                 </td>
               </tr>

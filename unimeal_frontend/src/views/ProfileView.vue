@@ -4,13 +4,15 @@ import { api } from '../services/api'
 
 const profile = ref(null)
 const saved = ref(false)
+const allergiesText = ref('')
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 const cuisineOptions = ['Italian', 'Japanese', 'Indian', 'Mediterranean', 'Middle Eastern']
 onMounted(async () => {
   profile.value = await api.getCurrentUser()
+  allergiesText.value = profile.value.allergies.join(', ')
 })
 async function saveProfile() {
-  profile.value = await api.updateProfile(profile.value)
+  profile.value = await api.updateProfile({ ...profile.value, allergies: allergiesText.value.split(',').map((value) => value.trim()).filter(Boolean) })
   saved.value = true
   setTimeout(() => {
     saved.value = false
@@ -62,12 +64,13 @@ async function saveProfile() {
                     <option>Shared kitchen</option>
                     <option>Private kitchen</option>
                     <option>Limited equipment</option>
+                    <option>No kitchen</option>
                   </select>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Allergies</label
                   ><input
-                    v-model="profile.allergies"
+                    v-model="allergiesText"
                     class="form-control"
                     placeholder="e.g. peanuts, shellfish"
                   />

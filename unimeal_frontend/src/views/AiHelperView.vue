@@ -77,7 +77,7 @@ function useExample(example) {
               <h2 class="ai-heading">Your meal ideas</h2>
               <p class="text-secondary mb-0">{{ result.summary }}</p>
             </div>
-            <span class="soft-badge align-self-md-start">UniMeal helper</span>
+            <span class="soft-badge align-self-md-start">Local recipe matching</span>
           </div>
           <div class="row g-4 mt-2">
             <div v-for="recipe in result.recipes" :key="recipe.id" class="col-md-6 col-xl-4">

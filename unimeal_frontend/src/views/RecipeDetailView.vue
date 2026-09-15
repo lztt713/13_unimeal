@@ -63,14 +63,21 @@ async function submitReport() {
   }
 }
 
-function submitComment() {
+async function submitComment() {
   if (!commentText.value.trim()) {
     commentError.value = true
     commentMessage.value = 'Please write a comment before submitting.'
     return
   }
-  commentError.value = false
-  commentMessage.value = 'Thank you for your comment.'
+  try {
+    recipe.value = await api.addRecipeComment(props.id, commentText.value.trim())
+    commentText.value = ''
+    commentError.value = false
+    commentMessage.value = 'Thank you for your comment.'
+  } catch (error) {
+    commentError.value = true
+    commentMessage.value = error.message
+  }
 }
 </script>
 
@@ -216,7 +223,7 @@ function submitComment() {
               <article class="surface-card p-4 h-100">
                 <div class="d-flex justify-content-between gap-2">
                   <strong>{{ comment.author }}</strong
-                  ><span class="recipe-rating">{{ comment.rating }} / 5</span>
+                  ><span v-if="comment.rating" class="recipe-rating">{{ comment.rating }} / 5</span>
                 </div>
                 <p class="mb-2 mt-3">{{ comment.text }}</p>
                 <small class="text-secondary">{{ comment.createdAt }}</small>

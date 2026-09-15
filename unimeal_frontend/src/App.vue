@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { api } from './services/api'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { api, apiError } from './services/api'
 
 const navOpen = ref(false)
 const route = useRoute()
+const router = useRouter()
 const user = ref(null)
 const navItems = computed(() => {
   if (!user.value) return [{ label: 'Home', to: '/' }]
@@ -12,9 +13,11 @@ const navItems = computed(() => {
   if (user.value.role === 'contributor') return [{ label: 'Recipes', to: '/recipes' }, { label: 'My Recipes', to: '/my-recipes' }, { label: 'Submit recipe', to: '/submit-recipe' }]
   return [{ label: 'Admin dashboard', to: '/admin' }, { label: 'Manage data', to: '/admin/manage' }]
 })
-async function refreshUser() { user.value = await api.getCurrentUser() }
+async function refreshUser() {
+  try { user.value = await api.getCurrentUser() } catch { user.value = null }
+}
 onMounted(refreshUser)
-watch(() => route.fullPath, refreshUser)
+watch(() => route.fullPath, () => { apiError.value = ''; refreshUser() })
 const closeNav = () => {
   navOpen.value = false
 }
@@ -22,6 +25,7 @@ async function signOut() {
   await api.signOut()
   await refreshUser()
   closeNav()
+  await router.push('/login')
 }
 </script>
 
@@ -55,6 +59,12 @@ async function signOut() {
   </header>
 
   <main class="app-main">
+    <div v-if="apiError" class="container mt-3" role="alert">
+      <div class="alert alert-danger d-flex justify-content-between align-items-center gap-3">
+        <span>{{ apiError }}</span>
+        <button class="btn-close" aria-label="Dismiss error" @click="apiError = ''"></button>
+      </div>
+    </div>
     <RouterView />
   </main>
 </template>

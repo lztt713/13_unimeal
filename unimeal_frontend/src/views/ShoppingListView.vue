@@ -8,7 +8,7 @@ const loadError = ref(false)
 const groupedItems = computed(
   () =>
     list.value?.items.reduce((groups, item) => {
-      const category = item.unit === 'ml' ? 'Liquids' : 'Pantry and produce'
+      const category = item.category || 'Other'
       ;(groups[category] ||= []).push(item)
       return groups
     }, {}) || {},
@@ -27,7 +27,7 @@ onMounted(async () => {
   }
 })
 async function toggle(item) {
-  list.value = await api.toggleShoppingItem(item.ingredientId, item.unit)
+  list.value = await api.toggleShoppingItem(item.id)
 }
 </script>
 

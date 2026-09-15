@@ -9,8 +9,11 @@ onMounted(async () => {
 })
 async function updateStatus(reportId, status) {
   updating.value = reportId
-  overview.value = await api.updateReportStatus(reportId, status)
-  updating.value = null
+  try {
+    overview.value = await api.updateReportStatus(reportId, status)
+  } finally {
+    updating.value = null
+  }
 }
 </script>
 

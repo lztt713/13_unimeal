@@ -9,23 +9,32 @@ const busyId = ref(null)
 
 async function loadRecipes() {
   loading.value = true
-  recipes.value = await api.getMyRecipes()
-  loading.value = false
+  try {
+    recipes.value = await api.getMyRecipes()
+  } finally {
+    loading.value = false
+  }
 }
 
 async function togglePublication(recipe) {
   busyId.value = recipe.id
-  await api.toggleRecipePublication(recipe.id)
-  await loadRecipes()
-  busyId.value = null
+  try {
+    await api.toggleRecipePublication(recipe.id)
+    await loadRecipes()
+  } finally {
+    busyId.value = null
+  }
 }
 
 async function removeRecipe(recipe) {
   if (!window.confirm(`Delete “${recipe.title}”?`)) return
   busyId.value = recipe.id
-  await api.deleteMyRecipe(recipe.id)
-  await loadRecipes()
-  busyId.value = null
+  try {
+    await api.deleteMyRecipe(recipe.id)
+    await loadRecipes()
+  } finally {
+    busyId.value = null
+  }
 }
 
 onMounted(loadRecipes)

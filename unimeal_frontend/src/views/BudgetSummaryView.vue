@@ -11,7 +11,7 @@ const remaining = computed(() =>
   summary.value ? summary.value.period.budgetAmount - summary.value.actualSpent : 0,
 )
 const usedPercent = computed(() =>
-  summary.value
+  summary.value?.period.budgetAmount > 0
     ? Math.min(100, (summary.value.actualSpent / summary.value.period.budgetAmount) * 100)
     : 0,
 )
@@ -68,7 +68,7 @@ onBeforeUnmount(() => chart?.destroy())
         <div>
           <p class="eyebrow">Weekly spending</p>
           <h1 class="page-title">Budget summary.</h1>
-          <p class="page-subtitle">A clear view of your planned food costs and weekly budget.</p>
+          <p class="page-subtitle">A clear view of your purchased food costs and weekly budget.</p>
         </div>
         <RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/shopping-list"
           >View shopping list</RouterLink
@@ -121,7 +121,7 @@ onBeforeUnmount(() => chart?.destroy())
               <div class="budget-tip mt-4">
                 <strong>Small win</strong>
                 <p class="mb-0">
-                  Your planned meals keep you below this week's limit. Check the list before buying
+                  Your recorded purchases are below this week's limit. Check the list before buying
                   extras.
                 </p>
               </div>
