@@ -7,19 +7,22 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.auth import student_user
 from app.database import get_db
-from app.models import MealPlan, MealPlanEntry
+from app.models import MealPlan, MealPlanEntry, User
 from app.routers.planning import budget_summary_for_user
 from app.routers.recipes import _recipe_to_response
-from app.auth import student_user
-from app.models import User
 from app.schemas import DashboardResponse
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
+# LZTT: Return the current student's budget, dinner, and favourites. / 返回当前学生的预算、晚餐和收藏。
 @router.get("/dashboard", response_model=DashboardResponse)
-def get_dashboard(db: Session = Depends(get_db), student: User = Depends(student_user)):
+def get_dashboard(
+    db: Session = Depends(get_db),
+    student: User = Depends(student_user),
+):
     """Return today's dinner, saved recipes, and purchased spend."""
     tonight_entry = (
         db.query(MealPlanEntry)
@@ -45,5 +48,9 @@ def get_dashboard(db: Session = Depends(get_db), student: User = Depends(student
         weekly_budget=weekly_budget,
         spent=spent,
         tonight=_recipe_to_response(tonight_entry.recipe, db) if tonight_entry else None,
-        favourites=[_recipe_to_response(recipe, db) for recipe in student.saved_recipes if recipe.status == "published"],
+        favourites=[
+            _recipe_to_response(recipe, db)
+            for recipe in student.saved_recipes
+            if recipe.status == "published"
+        ],
     )

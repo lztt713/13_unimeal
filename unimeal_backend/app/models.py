@@ -2,7 +2,6 @@
 
 from sqlalchemy import (
     Boolean,
-    func,
     Column,
     Date,
     DateTime,
@@ -38,7 +37,7 @@ saved_recipes = Table(
     Base.metadata,
     Column("user_id", BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True),
     Column("recipe_id", BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"), primary_key=True),
-    Column("saved_at", DateTime, server_default=func.now()),
+    Column("saved_at", DateTime),
 )
 
 
@@ -67,8 +66,8 @@ class User(Base):
     kitchen_access = Column(String(20), nullable=False, default="shared")
     favourite_cuisines_note = Column(String(255))
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     role = relationship("Role", back_populates="users")
     saved_recipes = relationship("Recipe", secondary=saved_recipes, back_populates="saved_by")
@@ -166,8 +165,8 @@ class Recipe(Base):
     difficulty = Column(String(20), nullable=False, default="easy")
     estimated_cost = Column(Numeric(10, 2), nullable=False, default=0)
     status = Column(String(20), nullable=False, default="draft")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     author = relationship("User")
     cuisine = relationship("Cuisine", back_populates="recipes")
@@ -227,8 +226,8 @@ class RecipeRating(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
     recipe_id = Column(BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"), primary_key=True)
     rating = Column(SmallInteger, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     user = relationship("User", back_populates="ratings")
     recipe = relationship("Recipe", back_populates="ratings")
@@ -257,8 +256,8 @@ class MealPlan(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     week_start_date = Column(Date, nullable=False)
     plan_name = Column(String(100), nullable=False, default="Weekly meal plan")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     user = relationship("User", back_populates="meal_plans")
     entries = relationship("MealPlanEntry", back_populates="meal_plan", cascade="all, delete-orphan")
@@ -292,8 +291,8 @@ class ShoppingList(Base):
     meal_plan_id = Column(BigInteger, ForeignKey("meal_plans.meal_plan_id", ondelete="SET NULL"))
     list_name = Column(String(100), nullable=False, default="Shopping list")
     status = Column(String(20), nullable=False, default="active")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     user = relationship("User", back_populates="shopping_lists")
     meal_plan = relationship("MealPlan", back_populates="shopping_lists")
@@ -332,72 +331,3 @@ class ShoppingListItem(Base):
     shopping_list = relationship("ShoppingList", back_populates="items")
     ingredient = relationship("Ingredient", back_populates="shopping_list_items")
     measurement_unit = relationship("MeasurementUnit", back_populates="shopping_list_items")
-
-# Existing profile, feedback and administration tables (no schema creation).
-user_dietary_preferences = Table(
-    'user_dietary_preferences', Base.metadata,
-    Column('user_id', BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), primary_key=True),
-    Column('dietary_tag_id', SmallInteger, ForeignKey('dietary_tags.dietary_tag_id', ondelete='CASCADE'), primary_key=True),
-)
-user_allergies = Table(
-    'user_allergies', Base.metadata,
-    Column('user_id', BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), primary_key=True),
-    Column('allergy_id', SmallInteger, ForeignKey('allergies.allergy_id', ondelete='CASCADE'), primary_key=True),
-)
-ingredient_allergens = Table(
-    'ingredient_allergens', Base.metadata,
-    Column('ingredient_id', BigInteger, ForeignKey('ingredients.ingredient_id', ondelete='CASCADE'), primary_key=True),
-    Column('allergy_id', SmallInteger, ForeignKey('allergies.allergy_id', ondelete='CASCADE'), primary_key=True),
-)
-
-
-class Allergy(Base):
-    __tablename__ = 'allergies'
-    allergy_id = Column(SmallInteger, primary_key=True, autoincrement=True)
-    allergy_name = Column(String(80), nullable=False, unique=True)
-
-
-class RecipeComment(Base):
-    __tablename__ = 'recipe_comments'
-    recipe_comment_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    recipe_id = Column(BigInteger, ForeignKey('recipes.recipe_id', ondelete='CASCADE'), nullable=False)
-    user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
-    comment_text = Column(Text, nullable=False)
-    is_hidden = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    author = relationship('User')
-    recipe = relationship('Recipe')
-
-
-class Notification(Base):
-    __tablename__ = 'notifications'
-    notification_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
-    notification_type = Column(String(30), nullable=False)
-    title = Column(String(160), nullable=False)
-    message = Column(Text, nullable=False)
-    scheduled_for = Column(DateTime)
-    read_at = Column(DateTime)
-    created_at = Column(DateTime, server_default=func.now())
-
-
-class ContentReport(Base):
-    __tablename__ = 'content_reports'
-    content_report_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    reporter_user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
-    recipe_id = Column(BigInteger, ForeignKey('recipes.recipe_id', ondelete='CASCADE'))
-    recipe_comment_id = Column(BigInteger, ForeignKey('recipe_comments.recipe_comment_id', ondelete='CASCADE'))
-    reason = Column(String(255), nullable=False)
-    status = Column(String(20), nullable=False, default='open')
-    reviewed_by_user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='SET NULL'))
-    reviewed_at = Column(DateTime)
-    created_at = Column(DateTime, server_default=func.now())
-    reporter = relationship('User', foreign_keys=[reporter_user_id])
-    recipe = relationship('Recipe')
-    comment = relationship('RecipeComment')
-
-
-User.dietary_preferences = relationship('DietaryTag', secondary=user_dietary_preferences)
-User.allergies = relationship('Allergy', secondary=user_allergies)
-Ingredient.allergens = relationship('Allergy', secondary=ingredient_allergens)

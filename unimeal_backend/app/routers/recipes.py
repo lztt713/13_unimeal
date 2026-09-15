@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user, contributor_user
-from app.models import RecipeComment
 from app.models import (
     Cuisine,
     DietaryTag,
@@ -41,7 +40,11 @@ from app.services.ingredient_service import (
 )
 from app.services.recipe_service import get_recipe_ingredients, search_recipes
 
-router = APIRouter(prefix="/api", tags=["recipes"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api", tags=["recipes"])
+
+DEFAULT_STUDENT_EMAIL = os.getenv("UNIMEAL_STUDENT_EMAIL", "student.michael@unimeal.test")
+DEFAULT_CONTRIBUTOR_EMAIL = os.getenv("UNIMEAL_CONTRIBUTOR_EMAIL", "contributor.ben@unimeal.test")
+
 
 def _display_difficulty(value: str | None) -> str:
     return (value or "easy").capitalize()
@@ -56,10 +59,7 @@ def _display_status(value: str | None) -> str:
 
 
 def _db_status(value: str | None) -> str:
-    status = (value or "draft").strip().lower()
-    if status not in {"draft", "published", "archived"}:
-        raise HTTPException(422, "Invalid recipe status")
-    return status
+    return (value or "draft").strip().lower()
 
 
 def _price_per_serving(recipe: Recipe) -> float:
@@ -74,6 +74,16 @@ def _rating_summary(db: Session, recipe_id: int) -> tuple[float, int]:
         .one()
     )
     return (round(float(rating), 1) if rating is not None else 0.0, int(count or 0))
+
+
+def _get_user_by_email(db: Session, email: str, role_label: str) -> User:
+    user = db.query(User).filter(User.email == email, User.is_active.is_(True)).first()
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{role_label} user '{email}' was not found. Run database/sample_data.sql first.",
+        )
+    return user
 
 
 def _normalize_lookup(value: str) -> str:
@@ -129,8 +139,6 @@ def _replace_recipe_ingredients(db: Session, recipe: Recipe, ingredient_details)
         if ingredient is None or not ingredient.is_active:
             raise HTTPException(status_code=400, detail=f"Ingredient {item.ingredient_id} was not found")
         unit = _unit_for_ingredient(db, ingredient, item.unit)
-        if unit.measurement_unit_id != ingredient.default_measurement_unit_id:
-            raise HTTPException(422, "Use the ingredient's reference unit so cost estimates stay consistent")
         db.add(
             RecipeIngredient(
                 recipe_id=recipe.recipe_id,
@@ -175,15 +183,11 @@ def _recipe_to_response(recipe: Recipe, db: Session) -> dict:
         "rating": rating,
         "review_count": review_count,
         "status": _display_status(recipe.status),
-        "dietary_tags": [tag.tag_name.replace("-", " ") for tag in recipe.dietary_tags],
+        "dietary_tags": [tag.tag_name for tag in recipe.dietary_tags],
         "ingredients": [item["name"].lower() for item in ingredient_details],
         "ingredient_details": ingredient_details,
         "steps": [step.instruction for step in recipe.steps],
-        "allergen_tags": sorted({a.allergy_name for item in recipe.recipe_ingredients for a in item.ingredient.allergens}),
-        "comments": [{"id": c.recipe_comment_id, "author": c.author.display_name,
-                      "text": c.comment_text, "created_at": c.created_at.isoformat() if c.created_at else None}
-                     for c in db.query(RecipeComment).filter(RecipeComment.recipe_id == recipe.recipe_id,
-                                                            RecipeComment.is_hidden.is_(False)).order_by(RecipeComment.created_at.desc()).all()],
+        "comments": [],
     }
 
 
@@ -239,11 +243,12 @@ def list_recipes(
 
 
 @router.get("/my-recipes", response_model=list[RecipeResponse])
-def list_my_recipes(db: Session = Depends(get_db), contributor: User = Depends(contributor_user)):
+def list_my_recipes(db: Session = Depends(get_db)):
     """
-    Return every recipe owned by the current contributor, including both
+    Return every recipe owned by the default test contributor, including both
     draft and published recipes.
     """
+    contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
     # Return only owned recipes, newest first.
     recipes = (
         db.query(Recipe)
@@ -255,17 +260,18 @@ def list_my_recipes(db: Session = Depends(get_db), contributor: User = Depends(c
 
 
 @router.get("/recipes/{recipe_id}", response_model=RecipeResponse)
-def get_recipe(recipe_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
     """Get a single recipe with ingredients and method steps."""
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
-    if recipe is None or (recipe.status != "published" and recipe.author_user_id != user.user_id and user.role.role_name != "administrator"):
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
     return _recipe_to_response(recipe, db)
 
 
 @router.post("/recipes", response_model=RecipeResponse, status_code=201)
-def create_recipe(payload: RecipeCreate, db: Session = Depends(get_db), author: User = Depends(contributor_user)):
+def create_recipe(payload: RecipeCreate, db: Session = Depends(get_db)):
     """Create a contributor recipe in the normalized MySQL tables."""
+    author = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
     cuisine = _get_or_create_cuisine(db, payload.cuisine)
 
     recipe = Recipe(
@@ -278,7 +284,7 @@ def create_recipe(payload: RecipeCreate, db: Session = Depends(get_db), author: 
         cooking_minutes=payload.cook_time,
         servings=payload.servings,
         difficulty=_db_difficulty(payload.difficulty),
-        estimated_cost=payload.estimated_cost * payload.servings,
+        estimated_cost=payload.estimated_cost,
         status="draft",
     )
     db.add(recipe)
@@ -288,7 +294,6 @@ def create_recipe(payload: RecipeCreate, db: Session = Depends(get_db), author: 
     _replace_recipe_ingredients(db, recipe, payload.ingredient_details)
     _replace_recipe_steps(db, recipe, payload.steps)
     if payload.ingredient_details:
-        db.flush()
         recipe.estimated_cost = calculate_recipe_cost(db, int(recipe.recipe_id))
 
     db.commit()
@@ -297,10 +302,10 @@ def create_recipe(payload: RecipeCreate, db: Session = Depends(get_db), author: 
 
 
 @router.put("/recipes/{recipe_id}", response_model=RecipeResponse)
-def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(get_db), user: User = Depends(contributor_user)):
+def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(get_db)):
     """Update a recipe while preserving Qichen's normalized table layout."""
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
-    if recipe is None or recipe.author_user_id != user.user_id:
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
     if payload.title is not None:
@@ -327,10 +332,9 @@ def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(g
         _replace_recipe_steps(db, recipe, payload.steps)
 
     if payload.ingredient_details is not None:
-        db.flush()
         recipe.estimated_cost = calculate_recipe_cost(db, int(recipe.recipe_id))
     elif payload.estimated_cost is not None:
-        recipe.estimated_cost = payload.estimated_cost * recipe.servings
+        recipe.estimated_cost = payload.estimated_cost
 
     db.commit()
     db.refresh(recipe)
@@ -338,11 +342,12 @@ def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(g
 
 
 @router.delete("/recipes/{recipe_id}")
-def delete_recipe(recipe_id: int, db: Session = Depends(get_db), contributor: User = Depends(contributor_user)):
+def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
     """
-    Delete a recipe owned by the current contributor, unless it is still
+    Delete a recipe owned by the default test contributor, unless it is still
     referenced by a meal plan.
     """
+    contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
     # Check ownership before deletion.
     recipe = (
         db.query(Recipe)
@@ -366,12 +371,13 @@ def delete_recipe(recipe_id: int, db: Session = Depends(get_db), contributor: Us
 
 
 @router.post("/recipes/{recipe_id}/ratings", response_model=RecipeResponse)
-def add_recipe_rating(recipe_id: int, payload: RatingCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Create or update the current user's rating for a recipe."""
+def add_recipe_rating(recipe_id: int, payload: RatingCreate, db: Session = Depends(get_db)):
+    """Create or update the default student's rating for a recipe."""
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
-    if recipe is None or (recipe.status != "published" and recipe.author_user_id != user.user_id and user.role.role_name != "administrator"):
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
+    user = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     rating = db.get(RecipeRating, {"user_id": user.user_id, "recipe_id": recipe.recipe_id})
     if rating is None:
         db.add(RecipeRating(user_id=user.user_id, recipe_id=recipe.recipe_id, rating=payload.rating))
@@ -384,17 +390,19 @@ def add_recipe_rating(recipe_id: int, payload: RatingCreate, db: Session = Depen
 
 
 @router.get("/saved-recipes", response_model=list[int])
-def get_saved_recipe_ids(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Return recipe IDs saved by the current account."""
+def get_saved_recipe_ids(db: Session = Depends(get_db)):
+    """Return recipe IDs saved by the default student account."""
+    user = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     rows = db.execute(select(saved_recipes.c.recipe_id).where(saved_recipes.c.user_id == user.user_id)).all()
     return [int(row[0]) for row in rows]
 
 
 @router.post("/recipes/{recipe_id}/saved", response_model=ToggleSavedRecipeResponse)
-def toggle_saved_recipe(recipe_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Toggle whether the current user has saved a recipe."""
+def toggle_saved_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    """Toggle whether the default student has saved a recipe."""
+    user = _get_user_by_email(db, DEFAULT_STUDENT_EMAIL, "Student")
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
-    if recipe is None or (recipe.status != "published" and recipe.author_user_id != user.user_id and user.role.role_name != "administrator"):
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
     existing = db.execute(

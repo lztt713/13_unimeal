@@ -31,7 +31,7 @@ class RecipeIngredientItem(BaseModel):
     model_config = api_model_config
 
     ingredient_id: int = Field(alias="ingredientId")
-    quantity: float = Field(default=1.0, gt=0, le=9999999)
+    quantity: float = 1.0
     unit: str | None = None
 
 
@@ -106,7 +106,6 @@ class RecipeResponse(RecipeBase):
     rating: float = 0.0
     review_count: int = Field(default=0, alias="reviewCount")
     status: str = "Draft"
-    allergen_tags: list[str] = Field(default_factory=list, alias="allergenTags")
     comments: list[RecipeCommentResponse] = Field(default_factory=list)
 
 

@@ -1,25 +1,16 @@
 """Database connection and session management."""
 
 import os
-from pathlib import Path
-from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
-from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or URL.create(
-    "mysql+pymysql",
-    username=os.getenv("DB_USER", "root"),
-    password=os.getenv("DB_PASSWORD", ""),
-    host=os.getenv("DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("DB_PORT", "3306")),
-    database=os.getenv("DB_NAME", "unimeal_planner"),
-    query={"charset": "utf8mb4"},
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://root:password@localhost:3306/unimeal_planner?charset=utf8mb4",
 )
 
 engine = create_engine(
