@@ -6,12 +6,20 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 api_model_config = ConfigDict(
     from_attributes=True,
     populate_by_name=True,
 )
 
+class AiRecommendationResponse(BaseModel):
+    query: str
+    mode: str
+    summary: str
+    recipes: list[RecipeResponse]
+    cautions: list[str]
+    
+class AiRecommendationRequest(BaseModel):
+    query: str = Field(...,min_length=3, max_length=500)
 
 class IngredientResponse(BaseModel):
     """Ingredient option returned to the recipe submission form."""

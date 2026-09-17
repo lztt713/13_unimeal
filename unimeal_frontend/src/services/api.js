@@ -77,8 +77,6 @@ export const api = {
   },
   async getSavedRecipeIds() { return responseData(http.get('/saved-recipes')) },
   async getAiRecommendation(query) {
-    const normalized = query.trim().toLowerCase()
-    const matches = mockRecipes.filter((recipe) => [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags].join(' ').toLowerCase().includes(normalized) || recipe.dietaryTags.some((tag) => normalized.includes(tag.toLowerCase())))
-    return clone({ query, mode: 'mock', summary: 'Based on your request, these recipes balance cost, time and dietary tags.', recipes: matches.length ? matches.slice(0, 3) : mockRecipes.filter((recipe) => recipe.estimatedCost <= 5).slice(0, 3), cautions: ['Check ingredient labels against your allergies.', 'Estimated costs can vary by supermarket.'] })
-  },
+    return responseData(http.post('/ai/recommendations', { query }, { timeout: 30000 }))
+  }
 }
