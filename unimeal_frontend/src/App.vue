@@ -1,27 +1,31 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { api } from './services/api'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { api, apiError } from './services/api'
 
 const navOpen = ref(false)
 const route = useRoute()
+const router = useRouter()
 const user = ref(null)
-const baseItems = [
-  { label: 'Home', to: '/' }, { label: 'Dashboard', to: '/dashboard' }, { label: 'Recipes', to: '/recipes' },
-  { label: 'Calendar', to: '/calendar' }, { label: 'Shopping List', to: '/shopping-list' }, { label: 'Budget', to: '/budget' }, { label: 'AI Helper', to: '/ai-helper' },
-]
 const navItems = computed(() => {
-  const role = user.value?.role
-  const items = [...baseItems]
-  if (role === 'contributor' || role === 'administrator') items.splice(3, 0, { label: 'My Recipes', to: '/my-recipes' }, { label: 'Submit', to: '/submit-recipe' })
-  if (role === 'administrator') items.push({ label: 'Admin', to: '/admin' })
-  return items
+  if (!user.value) return [{ label: 'Home', to: '/' }]
+  if (user.value.role === 'student') return [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Recipes', to: '/recipes' }, { label: 'Calendar', to: '/calendar' }, { label: 'Shopping List', to: '/shopping-list' }, { label: 'Budget', to: '/budget' }, { label: 'Notifications', to: '/notifications' }, { label: 'AI Helper', to: '/ai-helper' }]
+  if (user.value.role === 'contributor') return [{ label: 'Recipes', to: '/recipes' }, { label: 'My Recipes', to: '/my-recipes' }, { label: 'Submit recipe', to: '/submit-recipe' }]
+  return [{ label: 'Admin dashboard', to: '/admin' }, { label: 'Manage data', to: '/admin/manage' }]
 })
-async function refreshUser() { user.value = await api.getCurrentUser() }
+async function refreshUser() {
+  try { user.value = await api.getCurrentUser() } catch { user.value = null }
+}
 onMounted(refreshUser)
-watch(() => route.fullPath, refreshUser)
+watch(() => route.fullPath, () => { apiError.value = ''; refreshUser() })
 const closeNav = () => {
   navOpen.value = false
+}
+async function signOut() {
+  await api.signOut()
+  await refreshUser()
+  closeNav()
+  await router.push('/login')
 }
 </script>
 
@@ -48,12 +52,19 @@ const closeNav = () => {
             <RouterLink class="nav-link px-3" :to="item.to" @click="closeNav">{{ item.label }}</RouterLink>
           </li>
         </ul>
-        <RouterLink class="student-avatar ms-lg-3" to="/profile" title="Profile">{{ user?.displayName?.charAt(0) || 'U' }}</RouterLink>
+        <template v-if="user"><RouterLink class="student-avatar ms-lg-3" to="/profile" title="Profile">{{ user.displayName.charAt(0) }}</RouterLink><button class="btn btn-link nav-link ms-lg-2" type="button" @click="signOut">Sign out</button></template>
+        <div v-else class="d-flex gap-2 ms-lg-3 mt-3 mt-lg-0"><RouterLink class="btn btn-outline-primary btn-sm" to="/login" @click="closeNav">Log in</RouterLink><RouterLink class="btn btn-primary btn-sm" to="/register" @click="closeNav">Register</RouterLink></div>
       </div>
     </nav>
   </header>
 
   <main class="app-main">
+    <div v-if="apiError" class="container mt-3" role="alert">
+      <div class="alert alert-danger d-flex justify-content-between align-items-center gap-3">
+        <span>{{ apiError }}</span>
+        <button class="btn-close" aria-label="Dismiss error" @click="apiError = ''"></button>
+      </div>
+    </div>
     <RouterView />
   </main>
 </template>

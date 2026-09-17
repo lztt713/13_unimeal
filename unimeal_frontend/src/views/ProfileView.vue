@@ -4,16 +4,174 @@ import { api } from '../services/api'
 
 const profile = ref(null)
 const saved = ref(false)
+const allergiesText = ref('')
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 const cuisineOptions = ['Italian', 'Japanese', 'Indian', 'Mediterranean', 'Middle Eastern']
-onMounted(async () => { profile.value = await api.getCurrentUser() })
-async function saveProfile() { profile.value = await api.updateProfile(profile.value); saved.value = true; setTimeout(() => { saved.value = false }, 2500) }
+onMounted(async () => {
+  profile.value = await api.getCurrentUser()
+  allergiesText.value = profile.value.allergies.join(', ')
+})
+async function saveProfile() {
+  profile.value = await api.updateProfile({ ...profile.value, allergies: allergiesText.value.split(',').map((value) => value.trim()).filter(Boolean) })
+  saved.value = true
+  setTimeout(() => {
+    saved.value = false
+  }, 2500)
+}
 </script>
 
 <template>
-  <section class="page-shell"><div class="container"><div v-if="!profile" class="py-5 text-center text-secondary">Loading your profile...</div><template v-else><div class="profile-header surface-card p-4 p-md-5"><div class="profile-avatar">{{ profile.displayName.charAt(0) }}</div><div><p class="eyebrow">{{ profile.role }} account</p><h1 class="page-title">{{ profile.displayName }}</h1><p class="page-subtitle mt-1">{{ profile.email }}</p></div></div><form class="row g-4 mt-1" @submit.prevent="saveProfile"><div class="col-lg-8"><section class="surface-card p-4 p-md-5"><h2 class="profile-title">Preferences that shape your plan</h2><div class="row g-3 mt-1"><div class="col-md-6"><label class="form-label">Weekly food budget</label><div class="input-group"><span class="input-group-text">$</span><input v-model.number="profile.weeklyBudget" class="form-control" type="number" min="0" /></div></div><div class="col-md-6"><label class="form-label">Cooking skill</label><select v-model="profile.cookingSkill" class="form-select"><option>Beginner</option><option>Comfortable</option><option>Confident</option></select></div><div class="col-md-6"><label class="form-label">Kitchen access</label><select v-model="profile.kitchenAccess" class="form-select"><option>Shared kitchen</option><option>Private kitchen</option><option>Limited equipment</option></select></div><div class="col-md-6"><label class="form-label">Allergies</label><input v-model="profile.allergies" class="form-control" placeholder="e.g. peanuts, shellfish" /></div></div><fieldset class="mt-4"><legend class="form-label mb-2">Dietary preferences</legend><div class="d-flex flex-wrap gap-2"><label v-for="tag in tagOptions" :key="tag" class="choice-pill"><input v-model="profile.dietaryPreferences" type="checkbox" :value="tag" /> {{ tag }}</label></div></fieldset><fieldset class="mt-4"><legend class="form-label mb-2">Favourite cuisines</legend><div class="d-flex flex-wrap gap-2"><label v-for="cuisine in cuisineOptions" :key="cuisine" class="choice-pill"><input v-model="profile.favouriteCuisines" type="checkbox" :value="cuisine" /> {{ cuisine }}</label></div></fieldset></section></div><aside class="col-lg-4"><section class="surface-card p-4 sticky-lg-top profile-side"><h2 class="profile-title">Save changes</h2><p class="text-secondary">Your preferences will be used for future meal recommendations and smart searches.</p><button class="btn btn-primary rounded-pill w-100" type="submit">Save profile</button><p v-if="saved" class="saved-message mb-0 mt-3">Your mock profile was updated.</p><p class="small text-secondary mt-4 mb-0">Dietary preferences and allergies must be validated by the backend before they are used for live recommendations.</p></section></aside></form></template></div></section>
+  <section class="page-shell">
+    <div class="container">
+      <div v-if="!profile" class="py-5 text-center text-secondary">Loading your profile...</div>
+      <template v-else
+        ><div class="profile-header surface-card p-4 p-md-5">
+          <div class="profile-avatar">{{ profile.displayName.charAt(0) }}</div>
+          <div>
+            <p class="eyebrow">{{ profile.role }} account</p>
+            <h1 class="page-title">{{ profile.displayName }}</h1>
+            <p class="page-subtitle mt-1">{{ profile.email }}</p>
+          </div>
+        </div>
+        <form class="row g-4 mt-1" @submit.prevent="saveProfile">
+          <div class="col-lg-8">
+            <section class="surface-card p-4 p-md-5">
+              <h2 class="profile-title">Preferences that shape your plan</h2>
+              <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                  <label class="form-label">Weekly food budget</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span
+                    ><input
+                      v-model.number="profile.weeklyBudget"
+                      class="form-control"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Cooking skill</label
+                  ><select v-model="profile.cookingSkill" class="form-select">
+                    <option>Beginner</option>
+                    <option>Comfortable</option>
+                    <option>Confident</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Kitchen access</label
+                  ><select v-model="profile.kitchenAccess" class="form-select">
+                    <option>Shared kitchen</option>
+                    <option>Private kitchen</option>
+                    <option>Limited equipment</option>
+                    <option>No kitchen</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Allergies</label
+                  ><input
+                    v-model="allergiesText"
+                    class="form-control"
+                    placeholder="e.g. peanuts, shellfish"
+                  />
+                </div>
+              </div>
+              <fieldset class="mt-4">
+                <legend class="form-label mb-2">Dietary preferences</legend>
+                <div class="d-flex flex-wrap gap-2">
+                  <label v-for="tag in tagOptions" :key="tag" class="choice-pill"
+                    ><input v-model="profile.dietaryPreferences" type="checkbox" :value="tag" />
+                    {{ tag }}</label
+                  >
+                </div>
+              </fieldset>
+              <fieldset class="mt-4">
+                <legend class="form-label mb-2">Favourite cuisines</legend>
+                <div class="d-flex flex-wrap gap-2">
+                  <label v-for="cuisine in cuisineOptions" :key="cuisine" class="choice-pill"
+                    ><input v-model="profile.favouriteCuisines" type="checkbox" :value="cuisine" />
+                    {{ cuisine }}</label
+                  >
+                </div>
+              </fieldset>
+            </section>
+          </div>
+          <aside class="col-lg-4">
+            <section class="surface-card p-4 sticky-lg-top profile-side">
+              <h2 class="profile-title">Save changes</h2>
+              <p class="text-secondary">
+                Your preferences will be used for future meal recommendations and smart searches.
+              </p>
+              <button class="btn btn-primary rounded-pill w-100" type="submit">Save profile</button>
+              <p v-if="saved" class="saved-message mb-0 mt-3">Your profile was updated.</p>
+            </section>
+          </aside>
+        </form></template
+      >
+    </div>
+  </section>
 </template>
 
 <style scoped>
-.profile-header { display: flex; gap: 1.25rem; align-items: center; }.profile-avatar { display: grid; width: 4.5rem; height: 4.5rem; flex: 0 0 4.5rem; place-items: center; border-radius: 50%; color: #fff; background: var(--um-coral); font-size: 1.7rem; font-weight: 800; }.profile-title { color: var(--um-ink); font-size: 1.35rem; font-weight: 800; }.form-label { color: var(--um-ink); font-size: .83rem; font-weight: 750; }.form-control, .form-select, .input-group-text { border-color: var(--um-line); border-radius: .7rem; }.form-control, .form-select { padding: .65rem .8rem; }.input-group .input-group-text { border-top-right-radius: 0; border-bottom-right-radius: 0; }.input-group .form-control { border-top-left-radius: 0; border-bottom-left-radius: 0; }.choice-pill { border: 1px solid var(--um-line); border-radius: 99px; padding: .38rem .65rem; font-size: .82rem; cursor: pointer; }.choice-pill:has(input:checked) { border-color: var(--um-green); color: var(--um-green); background: var(--um-green-light); }.profile-side { top: 6rem; }.saved-message { color: var(--um-green); font-size: .85rem; font-weight: 750; }
+.profile-header {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+.profile-avatar {
+  display: flex;
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: 0 0 4.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--um-coral);
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+.profile-title {
+  color: var(--um-ink);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.form-label {
+  color: var(--um-ink);
+  font-size: 0.83rem;
+  font-weight: 750;
+}
+.form-control,
+.form-select,
+.input-group-text {
+  border-color: var(--um-line);
+  border-radius: 0.7rem;
+}
+.form-control,
+.form-select {
+  padding: 0.65rem 0.8rem;
+}
+.input-group .input-group-text {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.input-group .form-control {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.choice-pill {
+  border: 1px solid var(--um-line);
+  border-radius: 99px;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.profile-side {
+  top: 6rem;
+}
+.saved-message {
+  color: var(--um-green);
+  font-size: 0.85rem;
+  font-weight: 750;
+}
 </style>

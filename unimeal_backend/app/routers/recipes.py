@@ -244,8 +244,12 @@ def list_recipes(
 
 @router.get("/my-recipes", response_model=list[RecipeResponse])
 def list_my_recipes(db: Session = Depends(get_db)):
-    """Return every recipe owned by the default contributor, including drafts."""
+    """
+    Return every recipe owned by the default test contributor, including both
+    draft and published recipes.
+    """
     contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
+    # Return only owned recipes, newest first.
     recipes = (
         db.query(Recipe)
         .filter(Recipe.author_user_id == contributor.user_id)
@@ -339,8 +343,12 @@ def update_recipe(recipe_id: int, payload: RecipeUpdate, db: Session = Depends(g
 
 @router.delete("/recipes/{recipe_id}")
 def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
-    """Delete a recipe owned by the default contributor."""
+    """
+    Delete a recipe owned by the default test contributor, unless it is still
+    referenced by a meal plan.
+    """
     contributor = _get_user_by_email(db, DEFAULT_CONTRIBUTOR_EMAIL, "Contributor")
+    # Check ownership before deletion.
     recipe = (
         db.query(Recipe)
         .filter(
@@ -351,6 +359,7 @@ def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
     )
     if recipe is None:
         raise HTTPException(status_code=404, detail="Contributor recipe not found")
+    # Return 409 to protect existing meal-plan references.
     if db.query(MealPlanEntry).filter(MealPlanEntry.recipe_id == recipe_id).first() is not None:
         raise HTTPException(
             status_code=409,

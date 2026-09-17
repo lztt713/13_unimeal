@@ -6,6 +6,8 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pydantic import BaseModel, ConfigDict, Field
+
 api_model_config = ConfigDict(
     from_attributes=True,
     populate_by_name=True,

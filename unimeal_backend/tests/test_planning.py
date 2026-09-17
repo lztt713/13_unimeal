@@ -115,6 +115,7 @@ class PlanningFlowTest(unittest.TestCase):
             )
         )
         self.db.commit()
+        self.student = student
         self.student_id = student.user_id
         self.recipe_id = recipe.recipe_id
 
@@ -130,6 +131,7 @@ class PlanningFlowTest(unittest.TestCase):
                 plannedServings=4,
             ),
             self.db,
+            self.student,
         )
         self.assertEqual(plan["entries"][0]["meal_type"], "Dinner")
 
@@ -141,18 +143,19 @@ class PlanningFlowTest(unittest.TestCase):
                 plannedServings=4,
             ),
             self.db,
+            self.student,
         )
 
-        shopping = generate_shopping_list(current_week_start(), self.db)
+        shopping = generate_shopping_list(current_week_start(), self.db, self.student)
         self.assertEqual(len(shopping["items"]), 1)
         self.assertEqual(shopping["items"][0]["total_quantity"], 800.0)
         self.assertEqual(shopping["total_estimated_cost"], 1.6)
 
-        purchased = toggle_shopping_item(shopping["items"][0]["id"], self.db)
+        purchased = toggle_shopping_item(shopping["items"][0]["id"], self.db, self.student)
         self.assertTrue(purchased["items"][0]["purchased"])
         self.assertEqual(purchased["items"][0]["actual_cost"], 1.6)
 
-        regenerated = generate_shopping_list(current_week_start(), self.db)
+        regenerated = generate_shopping_list(current_week_start(), self.db, self.student)
         self.assertEqual(len(regenerated["items"]), 1)
         self.assertTrue(regenerated["items"][0]["purchased"])
 
@@ -160,7 +163,7 @@ class PlanningFlowTest(unittest.TestCase):
         self.assertEqual(budget["actual_spent"], 1.6)
         self.assertEqual(budget["categories"], [{"label": "Grains", "amount": 1.6}])
 
-        dashboard = get_dashboard(self.db)
+        dashboard = get_dashboard(self.db, self.student)
         self.assertEqual(dashboard.spent, 1.6)
         self.assertEqual(dashboard.tonight.title, "Rice bowl")
 
@@ -173,6 +176,7 @@ class PlanningFlowTest(unittest.TestCase):
                 plannedServings=1,
             ),
             self.db,
+            self.student,
         )
         entry_id = created["entries"][0]["id"]
         updated = update_meal_plan_entry(
@@ -185,12 +189,36 @@ class PlanningFlowTest(unittest.TestCase):
                 plannedServings=3,
             ),
             self.db,
+            self.student,
         )
         self.assertEqual(updated["entries"][0]["meal_type"], "Lunch")
         self.assertEqual(updated["entries"][0]["planned_servings"], 3)
 
-        emptied = delete_meal_plan_entry(entry_id, self.db)
+        emptied = delete_meal_plan_entry(entry_id, self.db, self.student)
         self.assertEqual(emptied["entries"], [])
+
+    def test_empty_calendar_clears_active_list_but_keeps_spending(self):
+        plan = save_meal_plan_entry(
+            MealPlanEntryWrite(
+                plannedDate=current_week_start(),
+                mealType="Dinner",
+                recipeId=self.recipe_id,
+                plannedServings=1,
+            ),
+            self.db,
+            self.student,
+        )
+        entry_id = plan["entries"][0]["id"]
+        shopping = generate_shopping_list(current_week_start(), self.db, self.student)
+        purchased = toggle_shopping_item(shopping["items"][0]["id"], self.db, self.student)
+        purchased_cost = purchased["items"][0]["actual_cost"]
+
+        delete_meal_plan_entry(entry_id, self.db, self.student)
+        current_list = generate_shopping_list(current_week_start(), self.db, self.student)
+        budget = budget_summary_for_user(self.db, self.student_id)
+
+        self.assertEqual(current_list["items"], [])
+        self.assertEqual(budget["actual_spent"], purchased_cost)
 
 
 if __name__ == "__main__":

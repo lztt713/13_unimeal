@@ -1,24 +1,36 @@
+
+/* ---------- 全站颜色变量----------
+   其他地方用 var(--um-green) 等方式引用。 */
 :root {
-  --um-green: #31572c;
-  --um-green-dark: #243f20;
-  --um-green-light: #dbe8d7;
-  --um-coral: #e76f51;
-  --um-cream: #f7f4ed;
-  --um-ink: #243024;
-  --um-muted: #687268;
-  --um-line: #e8e4d9;
-  --um-radius: 1.25rem;
+  --um-green: #2f624d;        /* 主色：品牌绿 */
+  --um-green-dark: #244b3b;   /* 主色深一号：按钮 hover / active 状态 */
+  --um-green-light: #e5f0ea;  /* 主色浅一号：标签、徽章、浅色背景 */
+  --um-coral: #c96f4e;        /* 强调色：珊瑚橙，用于 eyebrow、选中状态 */
+  --um-cream: #e9f0eb;        /* 全站背景色：暖白/米白 */
+  --um-ink: #24332b;          /* 主文字色：深墨绿，比纯黑柔和 */
+  --um-muted: #65736b;        /* 次要文字色：灰色，用于描述、副标题 */
+  --um-line: #dce4df;         /* 分割线/边框色：浅灰绿 */
+  --um-radius: .5rem;         /* 统一圆角大小：所有卡片/输入框共用 */
 }
 
-* { box-sizing: border-box; }
+/* ---------- 全局盒模型重置 ----------
+   让所有元素的 width/height 包含 padding 和 border， */
+* {
+  box-sizing: border-box;
+}
 
+/* ----------  body 基础样式 ---------- */
 body {
-  min-width: 320px;
-  min-height: 100vh;
-  color: var(--um-ink);
-  background: var(--um-cream);
+  min-width: 320px;           /* 最小宽度：保证在最小的手机上也不会挤成一团 */
+  min-height: 100vh;          /* 最小高度：至少占满一屏，防止页脚悬空 */
+  color: var(--um-ink);       /* 默认文字色：深墨绿 */
+  background: var(--um-cream);/* 全站背景色：暖白 */
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
+                              /* 字体：优先 Inter，没有就用系统默认字体 */
+  -webkit-font-smoothing: antialiased; /* 让字体在 Mac 上看起来更平滑 */
 }
 
-a { text-decoration: none; }
+/* -去掉浏览器默认的下划线 */
+a {
+  text-decoration: none;
+}
