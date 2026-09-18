@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
 
@@ -8,6 +8,12 @@ const route = useRoute()
 const ingredients = ref([])
 const submitted = ref(false)
 const errors = ref([])
+const imageInput = ref(null)
+const selectedImage = ref(null)
+const localPreviewUrl = ref('')
+const imageError = ref('')
+const maxImageSize = 5 * 1024 * 1024
+const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
 const form = ref({
   title: '',
   imageUrl: '',
@@ -24,6 +30,7 @@ const form = ref({
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 const previewUrl = computed(
   () =>
+    localPreviewUrl.value ||
     form.value.imageUrl ||
     'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80',
 )
@@ -67,6 +74,36 @@ function addStep() {
 function removeStep(index) {
   if (form.value.steps.length > 1) form.value.steps.splice(index, 1)
 }
+
+function clearSelectedImage() {
+  if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value)
+  localPreviewUrl.value = ''
+  selectedImage.value = null
+  imageError.value = ''
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+function selectImage(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  imageError.value = ''
+  if (!acceptedImageTypes.includes(file.type)) {
+    imageError.value = 'Choose a JPG, PNG, or WEBP image.'
+    event.target.value = ''
+    return
+  }
+  if (file.size > maxImageSize) {
+    imageError.value = 'Choose an image smaller than 5 MB.'
+    event.target.value = ''
+    return
+  }
+  if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value)
+  selectedImage.value = file
+  localPreviewUrl.value = URL.createObjectURL(file)
+}
+
+onBeforeUnmount(clearSelectedImage)
+
 async function submitRecipe() {
   errors.value = []
   if (!form.value.title.trim()) errors.value.push('Recipe title is required.')
@@ -281,20 +318,39 @@ async function submitRecipe() {
         <aside class="col-lg-4">
           <section class="surface-card p-4 sticky-lg-top preview-card">
             <h2 class="form-heading">Image preview</h2>
-            <img class="preview-image" :src="previewUrl" alt="Recipe preview" /><label
-              class="form-label mt-3"
-              for="image"
-              >Image URL</label
-            ><input
-              id="image"
-              v-model="form.imageUrl"
-              class="form-control"
-              type="url"
-              placeholder="https://..."
+            <img class="preview-image" :src="previewUrl" alt="Recipe preview" />
+            <input
+              id="image-file"
+              ref="imageInput"
+              class="visually-hidden"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              @change="selectImage"
             />
-            <p class="small text-secondary mt-3">
-              Use a public image URL to preview the recipe before submitting it.
+            <label class="file-picker" for="image-file">Choose image</label>
+            <span class="file-name">{{ selectedImage ? selectedImage.name : 'No file selected' }}</span>
+            <p v-if="selectedImage" class="small text-secondary mt-2 mb-0">
+              Selected: {{ selectedImage.name }}
             </p>
+            <button
+              v-if="selectedImage"
+              class="btn btn-link text-danger p-0 mt-2"
+              type="button"
+              @click="clearSelectedImage"
+            >
+              Remove selected image
+            </button>
+            <p v-if="imageError" class="text-danger small mt-2 mb-0">{{ imageError }}</p>
+            <div class="image-url-field">
+              <label class="form-label" for="image">Image URL (optional)</label>
+              <input
+                id="image"
+                v-model="form.imageUrl"
+                class="form-control"
+                type="url"
+                placeholder="https://..."
+              />
+            </div>
             <button
               class="btn btn-primary rounded-pill w-100 mt-2"
               type="submit"
@@ -393,6 +449,40 @@ async function submitRecipe() {
   height: 14rem;
   border-radius: 0.8rem;
   object-fit: cover;
+}
+
+.file-picker {
+  display: inline-block;
+  margin-top: 1rem;
+  border: 1px solid var(--um-green);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  color: #fff;
+  background: var(--um-green);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.file-name {
+  display: inline-block;
+  max-width: 100%;
+  margin-left: 0.65rem;
+  overflow: hidden;
+  color: var(--um-muted);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.image-url-field {
+  margin-top: 1rem;
+}
+
+.image-url-field .form-label {
+  display: block;
+  margin-bottom: 0.45rem;
 }
 
 /* ===== 移动端适配（超小屏） ===== */

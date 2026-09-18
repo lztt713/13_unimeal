@@ -21,9 +21,24 @@ const cuisines = computed(() => [...new Set(recipes.value.map((recipe) => recipe
 const dietaryTags = computed(() =>
   [...new Set(recipes.value.flatMap((recipe) => recipe.dietaryTags || []))].sort(),
 )
+const cookingSkillMessage = computed(() => {
+  const skill = currentUser.value?.cookingSkill
+  if (skill === 'Beginner') return 'Easy recipes are shown first for your Beginner cooking level.'
+  if (skill === 'Comfortable') return 'Easy and Medium recipes are shown first for your cooking level.'
+  if (skill === 'Confident') return 'All recipe difficulty levels are available for your cooking level.'
+  return ''
+})
+
+function cookingSkillRank(recipe) {
+  const skill = currentUser.value?.cookingSkill
+  if (skill === 'Beginner') return recipe.difficulty === 'Easy' ? 0 : 1
+  if (skill === 'Comfortable') return recipe.difficulty === 'Hard' ? 1 : 0
+  return 0
+}
+
 // Core: filter recipes by search keyword + 5 filters
-const filteredRecipes = computed(() =>
-  recipes.value.filter((recipe) => {
+const filteredRecipes = computed(() => {
+  const matchingRecipes = recipes.value.filter((recipe) => {
     const needle = search.value.trim().toLowerCase()
     const searchable = [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags]
       .join(' ')
@@ -45,8 +60,12 @@ const filteredRecipes = computed(() =>
       (filters.value.dietary === 'all' || recipe.dietaryTags.includes(filters.value.dietary)) &&
       timeMatch
     )
-  }),
-)
+  })
+  return matchingRecipes.sort(
+    (first, second) =>
+      cookingSkillRank(first) - cookingSkillRank(second) || first.estimatedCost - second.estimatedCost,
+  )
+})
 // Method: clear all filters ----------
 const clearFilters = () => {
   search.value = ''
@@ -102,6 +121,9 @@ onMounted(async () => {
             >Add recipe</RouterLink
           >
         </div>
+      </div>
+      <div v-if="cookingSkillMessage" class="skill-note mb-4">
+        <strong>Your cooking level:</strong> {{ currentUser.cookingSkill }}. {{ cookingSkillMessage }}
       </div>
       <!-- 移动端：显示/隐藏筛选按钮 / Mobile: toggle filters button -->
       <button
@@ -200,6 +222,16 @@ onMounted(async () => {
 .search-panel {
   max-width: 52rem;
   margin-inline: auto;
+}
+
+.skill-note {
+  max-width: 52rem;
+  margin-inline: auto;
+  border-left: 3px solid var(--um-green);
+  padding: 0.7rem 0.9rem;
+  color: var(--um-muted);
+  background: #f8fbf6;
+  font-size: 0.88rem;
 }
 
 /* ===== 搜索框里的放大镜图标 */
