@@ -6,7 +6,8 @@ import { api } from '../services/api'
 const recipes = ref([])
 const currentUser = ref(null)
 const loading = ref(true)
-const search = ref('')
+const search = ref('')  //  Search keyword
+// Filter object (5 dimensions, default all 'all')
 const filters = ref({
   price: 'all',
   cuisine: 'all',
@@ -16,19 +17,27 @@ const filters = ref({
 })
 const filterOpen = ref(false)
 const cuisines = computed(() => [...new Set(recipes.value.map((recipe) => recipe.cuisine))])
+// 从所有食谱的 dietaryTags 里提取不重复的标签
+const dietaryTags = computed(() =>
+  [...new Set(recipes.value.flatMap((recipe) => recipe.dietaryTags || []))].sort(),
+)
+// Core: filter recipes by search keyword + 5 filters
 const filteredRecipes = computed(() =>
   recipes.value.filter((recipe) => {
     const needle = search.value.trim().toLowerCase()
     const searchable = [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags]
       .join(' ')
       .toLowerCase()
+      //  Price match
     const priceMatch =
       filters.value.price === 'all' ||
       (filters.value.price === 'under-4' ? recipe.estimatedCost < 4 : recipe.estimatedCost < 6)
-    const timeMatch =
+    // Cook time match
+      const timeMatch =
       filters.value.cookTime === 'all' ||
       (filters.value.cookTime === 'under-20' ? recipe.cookTime < 20 : recipe.cookTime <= 30)
-    return (
+    // All conditions must be satisfied (AND logic)
+      return (
       (!needle || searchable.includes(needle)) &&
       priceMatch &&
       (filters.value.cuisine === 'all' || recipe.cuisine === filters.value.cuisine) &&
@@ -38,6 +47,7 @@ const filteredRecipes = computed(() =>
     )
   }),
 )
+// Method: clear all filters ----------
 const clearFilters = () => {
   search.value = ''
   filters.value = {
@@ -48,6 +58,8 @@ const clearFilters = () => {
     cookTime: 'all',
   }
 }
+// ---------- compute allergy warnings ----------
+// Logic: intersect user's allergies with recipe's allergen tags
 function allergyWarnings(recipe) {
   const allergies = currentUser.value?.allergies || []
   return (recipe.allergenTags || []).filter((tag) =>
@@ -75,14 +87,15 @@ onMounted(async () => {
       </div>
       <div class="search-panel surface-card p-2 p-md-3 mb-4">
         <div class="input-group">
-          <span class="input-group-text bg-transparent border-0 ps-3" aria-hidden="true">⌕</span
+          <span class="input-group-text bg-transparent border-0 ps-3" >⌕</span
           ><input
             v-model="search"
             class="form-control border-0 shadow-none py-2"
             type="search"
             placeholder="Search recipes, ingredients or cuisines"
-            aria-label="Search recipes"
-          /><RouterLink
+          />
+          <!-- "Add recipe" button only shows for contributors -->
+          <RouterLink
             v-if="currentUser?.role === 'contributor'"
             class="btn btn-primary rounded-pill px-4"
             to="/submit-recipe"
@@ -90,15 +103,16 @@ onMounted(async () => {
           >
         </div>
       </div>
+      <!-- 移动端：显示/隐藏筛选按钮 / Mobile: toggle filters button -->
       <button
         class="btn btn-outline-primary d-lg-none w-100 mb-3"
         type="button"
-        :aria-expanded="filterOpen"
         @click="filterOpen = !filterOpen"
       >
         {{ filterOpen ? 'Hide filters' : 'Show filters' }}
       </button>
       <div class="row g-4">
+        <!-- ----------  Left (3/12): Filters ---------- -->
         <aside class="col-lg-3" :class="{ 'd-none d-lg-block': !filterOpen }">
           <div class="surface-card filter-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -107,31 +121,36 @@ onMounted(async () => {
                 Clear all
               </button>
             </div>
+              <!--  Filter 1: Price -->
             <label class="form-label">Price per serving</label
             ><select v-model="filters.price" class="form-select mb-4">
               <option value="all">Any price</option>
               <option value="under-4">Under $4</option>
-              <option value="under-6">Under $6</option></select
-            ><label class="form-label">Cuisine</label
+              <option value="under-6">Under $6</option></select>
+              <!-- Filter 2: Cuisine (options from data) -->
+            <label class="form-label">Cuisine</label
             ><select v-model="filters.cuisine" class="form-select mb-4">
               <option value="all">All cuisines</option>
               <option v-for="cuisine in cuisines" :key="cuisine" :value="cuisine">
                 {{ cuisine }}
-              </option></select
-            ><label class="form-label">Difficulty</label
+              </option>
+            </select>
+            <!--  Filter 3: Difficulty -->
+            <label class="form-label">Difficulty</label
             ><select v-model="filters.difficulty" class="form-select">
               <option value="all">Any difficulty</option>
               <option>Easy</option>
               <option>Medium</option>
             </select>
+            <!--  Filter 4: Dietary preference -->
             <label class="form-label mt-4">Dietary preference</label>
             <select v-model="filters.dietary" class="form-select">
               <option value="all">Any preference</option>
-              <option>Vegetarian</option>
-              <option>Vegan</option>
-              <option>Gluten Free</option>
-              <option>High Protein</option>
+              <option v-for="tag in dietaryTags" :key="tag" :value="tag">
+                {{ tag }}
+              </option>
             </select>
+             <!--  Filter 5: Cooking time -->
             <label class="form-label mt-4">Cooking time</label>
             <select v-model="filters.cookTime" class="form-select">
               <option value="all">Any time</option>
@@ -140,6 +159,7 @@ onMounted(async () => {
             </select>
           </div>
         </aside>
+         <!-- ---------- Right (9/12): Recipe grid ---------- -->
         <div class="col-lg-9">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <p class="results-count mb-0">
@@ -150,9 +170,11 @@ onMounted(async () => {
           <div v-if="loading" class="py-5 text-center text-secondary">Loading recipes…</div>
           <div v-else-if="filteredRecipes.length" class="row g-4">
             <div v-for="recipe in filteredRecipes" :key="recipe.id" class="col-md-6 col-xl-4">
+              <!--  Pass recipe and allergy warnings -->
               <RecipeCard :recipe="recipe" :allergy-warnings="allergyWarnings(recipe)" />
             </div>
           </div>
+           <!-- No results: empty state -->
           <div v-else class="empty-state p-5">
             <h2 class="h5 fw-bold mb-2">No recipes match that search.</h2>
             <p class="mb-3">Try a broader keyword or clear your filters.</p>
@@ -174,34 +196,32 @@ onMounted(async () => {
 .intro {
   max-width: 44rem;
 }
-
+/* ===== 搜索面板：居中 + 最大宽度 */
 .search-panel {
   max-width: 52rem;
   margin-inline: auto;
 }
 
+/* ===== 搜索框里的放大镜图标 */
 .input-group-text {
   color: var(--um-green);
   font-size: 1.35rem;
 }
 
-.form-control:focus {
-  box-shadow: none;
-}
-
+/* ===== 筛选面板标题  */
 .filter-card h2 {
   margin: 0;
   color: var(--um-ink);
   font-size: 1.1rem;
   font-weight: 800;
 }
-
+/* "Price per serving"、"Cuisine"、"Difficulty" */
 .form-label {
   color: var(--um-ink);
   font-size: 0.82rem;
   font-weight: 750;
 }
-
+/* ===== 下拉框  ===== */
 .form-select {
   border-color: var(--um-line);
   border-radius: 0.7rem;

@@ -1,8 +1,8 @@
 @import './base.css';
-/* 导航栏外层：白色背景 + 底部一条浅灰分割线 */
+/* 导航栏外层：白色背景 + 底部阴影 */
 .app-header {
   background: #fff;
-  border-bottom: 1px solid var(--um-line);
+  box-shadow: 0 4px 20px rgba(36, 48, 36, 0.1);
 }
 /* 品牌文字 "UniMeal"：绿色、加粗、稍大 */
 .navbar-brand {
