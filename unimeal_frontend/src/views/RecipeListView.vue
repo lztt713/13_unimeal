@@ -42,7 +42,7 @@ function cookingSkillRank(recipe) {
 const filteredRecipes = computed(() => {
   const matchingRecipes = recipes.value.filter((recipe) => {
     const needle = search.value.trim().toLowerCase()
-    const searchable = [recipe.title, recipe.cuisine, ...recipe.ingredients, ...recipe.dietaryTags]
+    const searchable = [recipe.title, recipe.cuisine,recipe.difficulty, ...recipe.ingredients, ...recipe.dietaryTags]
       .join(' ')
       .toLowerCase()
       //  Price match
