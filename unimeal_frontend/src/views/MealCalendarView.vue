@@ -6,8 +6,9 @@ const plan = ref({ entries: [] })
 const recipes = ref([])
 const loading = ref(true)
 const loadError = ref(false)
-const activeSlot = ref(null)
+const activeSlot = ref(null)   // 当前打开的格子（day + mealType + entry）
 const selectedRecipeId = ref('')
+const plannedServings = ref(1)  // 这一餐做几人份，默认 1
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner']
 const weekDays = computed(() => {
   const [year, month, day] = plan.value.weekStartDate.split('-').map(Number)
@@ -47,15 +48,16 @@ function openSlot(day, mealType) {
   const entry = entryFor(day, mealType)
   activeSlot.value = { day, mealType, entry }
   selectedRecipeId.value = entry?.recipeId || ''
+  plannedServings.value = entry?.plannedServings || 1
 }
 async function saveSlot() {
-  if (!selectedRecipeId.value) return
+  if (!selectedRecipeId.value) return // 没选食谱直接返回
   plan.value = await api.saveMealPlanEntry({
-    id: activeSlot.value.entry?.id,
-    plannedDate: activeSlot.value.day.date,
-    mealType: activeSlot.value.mealType,
-    recipeId: Number(selectedRecipeId.value),
-    plannedServings: 2,
+    id: activeSlot.value.entry?.id, //  有 id 就是更新，没有就是新建
+    plannedDate: activeSlot.value.day.date, //  日期
+    mealType: activeSlot.value.mealType, //  餐次
+    recipeId: Number(selectedRecipeId.value),//  转成数字
+    plannedServings: plannedServings.value,
   })
   activeSlot.value = null
 }
@@ -87,7 +89,9 @@ async function removeSlot() {
       <template v-else
         ><div class="surface-card calendar-wrap">
           <div class="calendar-grid">
+            <!-- 左上角空白格 -->
             <div class="calendar-corner"></div>
+             <!-- 7 个日期表头 -->
             <div
               v-for="day in weekDays"
               :key="day.date"
@@ -97,17 +101,23 @@ async function removeSlot() {
               <span>{{ day.label }}</span
               ><strong>{{ day.number }}</strong>
             </div>
-            <template v-for="mealType in mealTypes" :key="mealType"
-              ><div class="meal-label">{{ mealType }}</div>
+            <!-- 3 行（每行一个餐次） -->
+            <template v-for="mealType in mealTypes" :key="mealType">
+              <!-- 左侧的餐次标签 -->
+              <div class="meal-label">{{ mealType }}</div>
+              <!-- 7 个格子 -->
               <div v-for="day in weekDays" :key="`${mealType}-${day.date}`" class="calendar-slot">
+                <!-- 有安排：显示带图片的卡片 -->
                 <template v-if="entryFor(day, mealType)"
                   ><button class="planned-recipe" type="button" @click="openSlot(day, mealType)">
                     <img
                       :src="recipeFor(entryFor(day, mealType)).imageUrl"
                       :alt="recipeFor(entryFor(day, mealType)).title"
                     /><span>{{ recipeFor(entryFor(day, mealType)).title }}</span>
-                  </button></template
-                ><button
+                  </button>
+                </template>
+                 <!-- 没安排：显示 + 号 -->
+                <button
                   v-else
                   class="add-slot"
                   type="button"
@@ -134,12 +144,14 @@ async function removeSlot() {
               {{ activeSlot.day.label }} {{ activeSlot.day.number }} - {{ activeSlot.mealType }}
             </p>
             <h2 id="slot-title" class="form-heading">Choose a recipe</h2>
+            <!-- 下拉框 -->
             <select v-model="selectedRecipeId" class="form-select mt-3">
               <option value="">Select a recipe</option>
               <option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">
                 {{ recipe.title }} - ${{ recipe.estimatedCost.toFixed(2) }}
               </option>
             </select>
+            <!-- 选中食谱的预览 -->
             <div v-if="selectedRecipe" class="chosen-recipe mt-3">
               <img :src="selectedRecipe.imageUrl" :alt="selectedRecipe.title" />
               <div>
@@ -147,6 +159,19 @@ async function removeSlot() {
                 ><span>{{ selectedRecipe.cookTime }} min · {{ selectedRecipe.difficulty }}</span>
               </div>
             </div>
+            <!-- 份数输入：选中食谱后才显示 -->
+            <div v-if="selectedRecipe" class="mt-3">
+              <label class="form-label" for="servings">Servings</label>
+              <input
+                id="servings"
+                v-model.number="plannedServings"
+                class="form-control"
+                type="number"
+                min="1"
+                max="10"
+              />
+            </div>
+            <!-- 删除 / 保存 -->
             <div class="d-flex justify-content-between gap-2 mt-4">
               <button
                 class="btn btn-link text-danger p-0"

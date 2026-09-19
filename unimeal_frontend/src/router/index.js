@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+// Import all page components (views)
 import DashboardView from '../views/DashboardView.vue'
 import RecipeListView from '../views/RecipeListView.vue'
 import RecipeDetailView from '../views/RecipeDetailView.vue'
@@ -20,9 +21,14 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    // Login and register reuse AuthView, distinguished by props
     { path: '/login', name: 'login', component: AuthView, props: { mode: 'login' } },
     { path: '/register', name: 'register', component: AuthView, props: { mode: 'register' } },
+
+    // ---------- Pages requiring authentication --------
     { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
+
+    // meta.roles is the core of access control, read by beforeEach guard below
     {
       path: '/dashboard',
       name: 'dashboard',
@@ -37,6 +43,7 @@ const router = createRouter({
       props: true,
       meta: { requiresAuth: true },
     },
+    // ---------Contributor-only pages ----------
     {
       path: '/submit-recipe',
       name: 'recipe-submission',
@@ -91,10 +98,15 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+   // Step 1: If the target page requires no login and has no role restriction, pass directly
   if (!to.meta.requiresAuth && !to.meta.roles) return true
+   // Step 2: Need authentication, request backend to get current user info (with Cookie)
   const user = await api.getCurrentUser()
+   // Step 3: If not logged in, redirect to login page and record original target path
   if (!user) return { name: 'login', query: { redirect: to.fullPath } }
+  // Step 4: Logged in, but the page only requires login (no role restriction), pass
   if (!to.meta.roles) return true
+   // Step 5: Check if user role matches page requirements
   if (to.meta.roles.includes(user.role)) return true
   if (user.role === 'administrator') return { name: 'admin' }
   if (user.role === 'contributor') return { name: 'my-recipes' }

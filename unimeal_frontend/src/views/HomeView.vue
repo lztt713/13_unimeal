@@ -1,3 +1,30 @@
+<script setup>
+// Featured meals data (hardcoded static data, since home page is public)
+const featuredMeals = [
+  {
+    title: 'Creamy Tomato Pasta',
+    cookTime: 25,
+    note: 'Vegetarian · from $4.80 per serving',
+    imageUrl:
+      'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    title: 'Chickpea Coconut Curry',
+    cookTime: 35,
+    note: 'Vegan and gluten free · from $4.20 per serving',
+    imageUrl:
+      'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    title: 'Mediterranean Veggie Wrap',
+    cookTime: 15,
+    note: 'Quick lunch idea · from $3.90 per serving',
+    imageUrl:
+      'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=900&q=80',
+  },
+]
+</script>
+
 <template>
   <section class="home-page">
     <div class="container py-5">
@@ -8,6 +35,7 @@
             UniMeal helps students find recipes, plan meals for the week, make a shopping list, and
             keep track of a food budget.
           </p>
+          <!-- Three buttons: all lead to register or login -->
           <div class="d-flex flex-wrap gap-2 mt-4">
             <RouterLink class="btn btn-primary" to="/register">Create an account</RouterLink
             ><RouterLink class="btn btn-outline-primary" to="/login">Log in</RouterLink
@@ -16,6 +44,7 @@
             >
           </div>
         </div>
+        <!-- Right image column: takes 5/12 on large screens -->
         <div class="col-lg-5">
           <img
             class="img-fluid rounded border"
@@ -25,53 +54,70 @@
         </div>
       </div>
 
+      <!-- Section 2: Four feature cards (whole card clickable → /login) -->
       <section class="mt-5">
         <h2 class="h3 fw-bold">What can you do with UniMeal?</h2>
         <div class="row g-3 mt-1">
+
           <div class="col-md-6 col-lg-3">
-            <article class="card feature-card feature-1 h-100">
+             <!-- position-relative 是 stretched-link 生效的必要条件 -->
+            <article class="card feature-card feature-1 h-100 position-relative">
               <div class="card-body">
+                 <!-- 卡片内容：编号、标题、描述 -->
                 <span class="feature-number">01</span>
                 <h3 class="h5">Find recipes</h3>
                 <p class="card-text text-secondary">
                   Search recipes by cuisine, cost, difficulty, and dietary preference.
                 </p>
-                <RouterLink class="btn btn-sm btn-outline-primary mt-2" to="/login"
-                  >Log in to browse</RouterLink
-                >
+                <span class="card-arrow">→</span>
+                 <!-- stretched-link 让它铺满整张卡片 -->
+                <RouterLink class="stretched-link" to="/login">
+                </RouterLink>
               </div>
             </article>
           </div>
           <div class="col-md-6 col-lg-3">
-            <article class="card feature-card feature-2 h-100">
+            <article class="card feature-card feature-2 h-100 position-relative">
               <div class="card-body">
                 <span class="feature-number">02</span>
                 <h3 class="h5">Plan meals</h3>
                 <p class="card-text text-secondary">
                   Choose meals for each day of the week and update the plan when needed.
                 </p>
+                <span class="card-arrow">→</span>
+                 <!-- stretched-link 让它铺满整张卡片 -->
+                <RouterLink class="stretched-link" to="/login">
+                </RouterLink>
               </div>
             </article>
           </div>
           <div class="col-md-6 col-lg-3">
-            <article class="card feature-card feature-3 h-100">
+            <article class="card feature-card feature-3 h-100 position-relative">
               <div class="card-body">
                 <span class="feature-number">03</span>
                 <h3 class="h5">Build a shopping list</h3>
                 <p class="card-text text-secondary">
                   Combine ingredients from planned recipes into one list.
                 </p>
+                <span class="card-arrow">→</span>
+                 <!-- stretched-link 让它铺满整张卡片 -->
+                <RouterLink class="stretched-link" to="/login">
+                </RouterLink>
               </div>
             </article>
           </div>
           <div class="col-md-6 col-lg-3">
-            <article class="card feature-card feature-4 h-100">
+            <article class="card feature-card feature-4 h-100 position-relative">
               <div class="card-body">
                 <span class="feature-number">04</span>
                 <h3 class="h5">Manage your budget</h3>
                 <p class="card-text text-secondary">
                   Compare estimated food spending with your weekly budget.
                 </p>
+                <span class="card-arrow">→</span>
+                 <!-- stretched-link 让它铺满整张卡片 -->
+                <RouterLink class="stretched-link" to="/login">
+                </RouterLink>
               </div>
             </article>
           </div>
@@ -89,6 +135,7 @@
           <RouterLink class="btn btn-outline-primary" to="/login">Log in to explore</RouterLink>
         </div>
         <div class="row g-3">
+           <!-- Loop through featuredMeals array to render 3 recipe cards -->
           <div v-for="meal in featuredMeals" :key="meal.title" class="col-md-4">
             <article class="featured-meal h-100">
               <img :src="meal.imageUrl" :alt="meal.title" />
@@ -104,6 +151,7 @@
         </div>
       </section>
 
+        <!--Role cards (matching the 3 user roles in the brief) -->
       <section class="mt-5 border-top pt-4">
         <h2 class="h3 fw-bold">Who is UniMeal for?</h2>
         <div class="row g-3 mt-1">
@@ -137,57 +185,53 @@
   </section>
 </template>
 
-<script setup>
-const featuredMeals = [
-  {
-    title: 'Creamy Tomato Pasta',
-    cookTime: 25,
-    note: 'Vegetarian · from $4.80 per serving',
-    imageUrl:
-      'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    title: 'Chickpea Coconut Curry',
-    cookTime: 35,
-    note: 'Vegan and gluten free · from $4.20 per serving',
-    imageUrl:
-      'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    title: 'Mediterranean Veggie Wrap',
-    cookTime: 15,
-    note: 'Quick lunch idea · from $3.90 per serving',
-    imageUrl:
-      'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=900&q=80',
-  },
-]
-</script>
+
 
 <style scoped>
-.home-page {
+/* .home-page {
   background: var(--um-cream);
-}
+} */
+ /* ===== 首页所有标题统一深灰色 ===== */
 .home-page h1,
 .home-page h2,
 .home-page h3 {
   color: #212529;
 }
+/* ===== 首页所有图片：最高 20rem，宽度 100%，裁切不变形 ===== */
 .home-page img {
   max-height: 20rem;
   width: 100%;
   object-fit: cover;
 }
 .card {
+  /* ===== 通用卡片：浅灰绿边框 + 圆角 + 无阴影 ===== */
   border-color: var(--um-line);
   border-radius: 0.375rem;
   box-shadow: none;
 }
+/* ===== 功能卡片：顶部装饰线 + 悬停上浮动画 ===== */
 .feature-card {
   border-top: 3px solid var(--um-green);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;/* 鼠标变手型，提示可点击  */
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(36, 48, 36, 0.12);
 }
 .feature-card .card-body {
   padding: 1.25rem;
 }
+/* 右下角的箭头*/
+.card-arrow {
+  position: absolute;
+  bottom: 1rem;
+  right: 1.25rem;
+  color: var(--um-green);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+/* Feature number badge (01, 02, 03, 04) */
 .feature-number {
   display: inline-block;
   margin-bottom: 0.8rem;
@@ -236,7 +280,7 @@ const featuredMeals = [
 .role-admin {
   border-left-color: var(--um-coral);
 }
-
+/* Featured meal card: border + rounded corners */
 .featured-meal {
   overflow: hidden;
   border: 1px solid var(--um-line);

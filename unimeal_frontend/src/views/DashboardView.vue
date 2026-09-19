@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import RecipeCard from '../components/RecipeCard.vue'
 import { api } from '../services/api'
-
+// ----------Reactive state ----------
 const data = ref(null)
 const loading = ref(true)
 const error = ref(false)
@@ -55,7 +55,8 @@ const quickLinks = [
     action: 'Edit profile',
   },
 ]
-
+// ---------- Lifecycle: fetch 3 APIs in parallel ----------
+// Promise.all fires all 3 requests at once, much faster than sequential
 onMounted(async () => {
   try {
     ;[data.value, recipes.value, currentUser.value] = await Promise.all([
@@ -94,8 +95,7 @@ async function replaceDinner() {
   <section class="page-shell">
     <div class="container">
       <div
-        class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4 mb-md-5"
-      >
+        class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4 mb-md-5">
         <div>
           <p class="eyebrow">Your student kitchen</p>
           <h1 class="page-title">
@@ -105,8 +105,7 @@ async function replaceDinner() {
           <p class="page-subtitle">A calm plan for delicious meals and a happier wallet.</p>
         </div>
         <RouterLink class="btn btn-primary rounded-pill px-4 py-2" to="/calendar"
-          >Plan my week</RouterLink
-        >
+          >Plan my week</RouterLink>
       </div>
 
       <!-- ---------- 加载中状态 ---------- -->
@@ -119,6 +118,7 @@ async function replaceDinner() {
       </div>
        <!-- ---------- 正常内容（数据加载成功后才渲染） ---------- -->
       <template v-else>
+        <!-- Row 1: Dinner card + Budget card -->
         <div class="row g-4 align-items-stretch">
           <div class="col-lg-8">
             <article v-if="data.tonight" class="surface-card dinner-card h-100">
@@ -134,6 +134,7 @@ async function replaceDinner() {
                   <p class="eyebrow">Tonight's dinner</p>
                   <h2>{{ data.tonight.title }}</h2>
                   <p class="text-muted mb-4">A tasty, low-stress dinner that fits your plan.</p>
+                  <!-- Three badges: time / cost / difficulty -->
                   <div class="d-flex flex-wrap gap-2 mb-4">
                     <span class="soft-badge">{{ data.tonight.cookTime }} min</span
                     ><span class="soft-badge">${{ data.tonight.estimatedCost.toFixed(2) }}</span
@@ -147,8 +148,7 @@ async function replaceDinner() {
                     ><button
                       class="btn btn-outline-primary rounded-pill px-4"
                       type="button"
-                      @click="replaceOpen = true"
-                    >
+                      @click="replaceOpen = true">
                       Replace
                     </button>
                   </div>
@@ -177,20 +177,13 @@ async function replaceDinner() {
                   <p class="eyebrow">Weekly budget</p>
                   <h2 class="mb-0">${{ remaining.toFixed(2) }} <span>left</span></h2>
                 </div>
-                <span class="budget-icon" aria-hidden="true">$</span>
+                <span class="budget-icon">$</span>
               </div>
               <div class="d-flex justify-content-between small fw-semibold mb-2">
                 <span>${{ data.spent.toFixed(2) }} spent</span
                 ><span>${{ data.weeklyBudget.toFixed(2) }} budget</span>
               </div>
-              <div
-                class="progress mb-4"
-                role="progressbar"
-                aria-label="Weekly budget used"
-                :aria-valuenow="budgetPercent"
-                aria-valuemin="0"
-                aria-valuemax="100"
-              >
+              <div class="progress mb-4">
                 <div class="progress-bar" :style="{ width: `${budgetPercent}%` }"></div>
               </div>
               <p v-if="data.weeklyBudget > 0" class="budget-note mb-0">
@@ -230,6 +223,7 @@ async function replaceDinner() {
               Use these pages to complete your weekly meal-planning tasks.
             </p>
           </div>
+          <!-- Loop through quickLinks array to render 6 cards -->
           <div class="row g-3">
             <div v-for="link in quickLinks" :key="link.to" class="col-md-6 col-lg-4">
               <article class="card h-100">
@@ -248,17 +242,13 @@ async function replaceDinner() {
       <!-- ========== 弹窗：替换晚餐 ========== -->
       <div v-if="replaceOpen" class="modal-backdrop-custom" @click.self="replaceOpen = false">
         <section
-          class="replace-modal surface-card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="replace-title"
-        >
+          class="replace-modal surface-card">
         <!-- 右上角关闭按钮 -->
-          <button class="close-modal" type="button" aria-label="Close" @click="replaceOpen = false">
+          <button class="close-modal" type="button" @click="replaceOpen = false">
             ×
           </button>
           <p class="eyebrow">Tonight's dinner</p>
-          <h2 id="replace-title" class="section-title">Choose a replacement</h2>
+          <h2 class="section-title">Choose a replacement</h2>
           <p class="text-secondary mt-2">
             This updates today's Dinner entry in your current meal plan.
           </p>
@@ -310,7 +300,7 @@ async function replaceDinner() {
   font-weight: 700;
 }
 
-/* ===== 晚餐卡片标题（响应式字体） ===== */
+/* ===== 晚餐卡片标题 ===== */
 .dinner-card h2 {
   font-size: 2rem;
 }
@@ -371,7 +361,7 @@ async function replaceDinner() {
   font-size: 1.5rem;
 }
 
-/* ===== 文字链接（“探索食谱”那种） ===== */
+/* ===== 文字链接（“Explore recipes →”） ===== */
 .text-link {
   color: var(--um-green);
   font-size: 0.9rem;
@@ -404,6 +394,7 @@ async function replaceDinner() {
   border-color: var(--um-line);
   border-radius: 0.5rem;
   box-shadow: none;
+  border-top: 3px solid var(--um-green);
 }
 /* 卡片里的标题：绿色 */
 .card h3 {
