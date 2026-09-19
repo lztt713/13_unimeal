@@ -2,19 +2,20 @@
 import { onMounted, ref } from 'vue'
 import { api } from '../services/api'
 
-const activeTab = ref('users')
+const activeTab = ref('users')  // 当前激活的 Tab（默认 users）
 const management = ref(null)
-const categories = ref([])
-const newCategory = ref('')
+const categories = ref([])  // 食材分类列表（Tab 3）
+const newCategory = ref('')  // 新分类输入框
 const error = ref('')
 
 async function load() {
-  management.value = await api.getAdminManagement()
-  categories.value = await api.getIngredientCategories()
+  management.value = await api.getAdminManagement()  // 用户 + 食谱
+  categories.value = await api.getIngredientCategories()  // 分类
 }
 async function updateUser(user, update) {
   management.value = await api.updateUser(user.id, update)
 }
+// ---------- update recipe status ----------
 async function updateRecipe(recipe, status) {
   management.value = await api.updateAdminRecipeStatus(recipe.id, status)
 }
@@ -28,8 +29,11 @@ async function addCategory() {
   }
 }
 async function removeCategory(category) {
+  // Confirm before delete
+  if (!window.confirm(`Delete "${category.name}"?`)) return
   categories.value = await api.deleteIngredientCategory(category.id)
 }
+
 onMounted(load)
 </script>
 
@@ -45,6 +49,7 @@ onMounted(load)
       </div>
       <div v-if="!management" class="py-5 text-center text-secondary">Loading platform data...</div>
       <section v-else class="surface-card p-3 p-md-5">
+        <!-- Tab navigation: three pill buttons-->
         <ul class="nav nav-pills gap-2 mb-4">
           <li
             class="nav-item"
@@ -55,6 +60,7 @@ onMounted(load)
             ]"
             :key="tab.id"
           >
+          <!-- Active tab gets "active" class (green background, white text) -->
             <button
               class="nav-link"
               :class="{ active: activeTab === tab.id }"
@@ -64,6 +70,7 @@ onMounted(load)
             </button>
           </li>
         </ul>
+        <!--  Tab 1: Users table -->
         <div v-if="activeTab === 'users'" class="table-responsive">
           <table class="table align-middle">
             <thead>
@@ -75,11 +82,14 @@ onMounted(load)
             </thead>
             <tbody>
               <tr v-for="user in management.users" :key="user.id">
+                 <!-- 用户列：姓名 + 邮箱 -->
                 <td>
                   <strong>{{ user.displayName }}</strong
                   ><small>{{ user.email }}</small>
                 </td>
                 <td>
+                   <!-- 角色列：下拉框 -->
+                  <!-- 用 :value + @change 而非 v-model，因为要同步到后端 -->
                   <select
                     class="form-select form-select-sm"
                     :value="user.role"
@@ -90,6 +100,7 @@ onMounted(load)
                     <option value="administrator">Administrator</option>
                   </select>
                 </td>
+                <!-- 状态列：按钮 -->
                 <td>
                   <button
                     class="btn btn-sm rounded-pill"
@@ -107,6 +118,7 @@ onMounted(load)
             </tbody>
           </table>
         </div>
+        <!-- Tab 2: Recipes table-->
         <div v-else-if="activeTab === 'recipes'" class="table-responsive">
           <table class="table align-middle">
             <thead>
@@ -138,7 +150,9 @@ onMounted(load)
             </tbody>
           </table>
         </div>
+        <!-- Tab 3: Ingredient categories-->
         <div v-else>
+          <!-- Add category form -->
           <form class="row g-2 align-items-end mb-4" @submit.prevent="addCategory">
             <div class="col-sm-7 col-md-5">
               <label class="form-label">New category</label
@@ -148,6 +162,7 @@ onMounted(load)
               <button class="btn btn-primary rounded-pill" type="submit">Add category</button>
             </div>
           </form>
+          <!-- Error message -->
           <p v-if="error" class="text-danger small">{{ error }}</p>
           <div class="row g-3">
             <article v-for="category in categories" :key="category.id" class="col-md-6">
@@ -175,14 +190,11 @@ onMounted(load)
 }
 .nav-pills .nav-link.active,
 .nav-pills .show > .nav-link {
-  color: #fff;
-  background: var(--um-green);
+  color: #fff;  /* 激活时白字 */
+  background: var(--um-green);   /* 绿色背景 */
 }
-.nav-pills .nav-link.active:hover,
-.nav-pills .nav-link.active:focus {
-  color: #fff;
-  background: #274a23;
-}
+
+/* 用户表格里姓名下方的邮箱、食谱表格里标题下方的菜系·难度 */
 .table small {
   display: block;
   color: var(--um-muted);

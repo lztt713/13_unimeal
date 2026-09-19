@@ -10,19 +10,24 @@ const activeSlot = ref(null)   // 当前打开的格子（day + mealType + entry
 const selectedRecipeId = ref('')
 const plannedServings = ref(1)  // 这一餐做几人份，默认 1
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner']
+// Generate 7 consecutive days starting from plan.weekStartDate
 const weekDays = computed(() => {
+  // 把 "2026-09-18" 拆成 [2026, 9, 18] / Split date string into numbers
   const [year, month, day] = plan.value.weekStartDate.split('-').map(Number)
+   // Array.from 生成 7 个元素，offset 从 0 到 6
   return Array.from({ length: 7 }, (_, offset) => {
+    // 注意 month - 1：JavaScript Date 的月份是 0-11
     const date = new Date(year, month - 1, day + offset)
     const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     return {
-      date: dateKey,
-      label: date.toLocaleDateString('en-NZ', { weekday: 'short' }),
-      number: date.getDate(),
-      isToday: date.toDateString() === new Date().toDateString(),
+      date: dateKey,  // "2026-09-18"
+      label: date.toLocaleDateString('en-NZ', { weekday: 'short' }), // "Mon"
+      number: date.getDate(),  // 18
+      isToday: date.toDateString() === new Date().toDateString(), // 是否今天
     }
   })
 })
+// selectedRecipeId 是"用户选了哪道菜的 ID"，selectedRecipe 是"把 ID 换成完整的数据对象"
 const selectedRecipe = computed(() =>
   recipes.value.find((recipe) => recipe.id === Number(selectedRecipeId.value)),
 )
@@ -36,20 +41,24 @@ onMounted(async () => {
     loading.value = false
   }
 })
+// ---------- 查某格有没有安排
 function entryFor(day, mealType) {
   return plan.value.entries.find(
     (entry) => entry.plannedDate === day.date && entry.mealType === mealType,
   )
 }
+// ---------- 根据 entry 找食谱详情
 function recipeFor(entry) {
   return recipes.value.find((recipe) => recipe.id === entry?.recipeId)
 }
+// ---------- 点击格子打开弹窗
 function openSlot(day, mealType) {
-  const entry = entryFor(day, mealType)
-  activeSlot.value = { day, mealType, entry }
-  selectedRecipeId.value = entry?.recipeId || ''
-  plannedServings.value = entry?.plannedServings || 1
+  const entry = entryFor(day, mealType)  // 先查这个格子有没有安排
+  activeSlot.value = { day, mealType, entry }  // 记录当前操作的格子
+  selectedRecipeId.value = entry?.recipeId || '' // 已有安排则预选食谱
+  plannedServings.value = entry?.plannedServings || 1   // 已有安排则读取份数，否则默认 1
 }
+// ---------- 保存安排
 async function saveSlot() {
   if (!selectedRecipeId.value) return // 没选食谱直接返回
   plan.value = await api.saveMealPlanEntry({
@@ -57,11 +66,13 @@ async function saveSlot() {
     plannedDate: activeSlot.value.day.date, //  日期
     mealType: activeSlot.value.mealType, //  餐次
     recipeId: Number(selectedRecipeId.value),//  转成数字
-    plannedServings: plannedServings.value,
+    plannedServings: plannedServings.value,  // 用户指定的份数
   })
   activeSlot.value = null
 }
+// ---------- 删除安排
 async function removeSlot() {
+  // Only call API if there's an existing entry
   if (activeSlot.value.entry) plan.value = await api.removeMealPlanEntry(activeSlot.value.entry.id)
   activeSlot.value = null
 }
@@ -130,6 +141,7 @@ async function removeSlot() {
             >
           </div>
         </div>
+         <!-- @click.self：只有点遮罩层才关闭  -->
         <div v-if="activeSlot" class="modal-backdrop-custom" @click.self="activeSlot = null">
           <section
             class="slot-modal surface-card"
@@ -197,14 +209,18 @@ async function removeSlot() {
 </template>
 
 <style scoped>
+/*  Calendar wrapper: horizontal scroll ===== */
 .calendar-wrap {
   overflow-x: auto;
 }
+/*  Col 1: 6.5rem */
+/*  Cols 2-8: 7 cols, min 8.5rem */
 .calendar-grid {
   display: grid;
   grid-template-columns: 6.5rem repeat(7, minmax(8.5rem, 1fr));
   min-width: 66rem;
 }
+/* =====  Borders for grid children ===== */
 .calendar-grid > * {
   border-bottom: 1px solid var(--um-line);
   border-right: 1px solid var(--um-line);
@@ -212,6 +228,7 @@ async function removeSlot() {
 .calendar-corner {
   background: #fbfaf6;
 }
+/* =====  Day headings ===== */
 .day-heading {
   display: flex;
   min-height: 5.25rem;
@@ -221,6 +238,7 @@ async function removeSlot() {
   gap: 0.15rem;
   background: #fbfaf6;
 }
+/* "Mon" / "Tue" 这些星期的缩写 ,"Breakfast" / "Lunch" / "Dinner" */
 .day-heading span,
 .meal-label {
   color: var(--um-muted);
@@ -228,10 +246,12 @@ async function removeSlot() {
   font-weight: 750;
   text-transform: uppercase;
 }
+/* "18" / "19" 这些日期数字 */
 .day-heading strong {
   color: var(--um-green);
   font-size: 1.25rem;
 }
+/* =====  Meal labels ===== */
 .meal-label {
   display: flex;
   align-items: center;
@@ -243,6 +263,7 @@ async function removeSlot() {
   padding: 0.5rem;
   background: #fff;
 }
+/* =====  "+" button: empty slot ===== */
 .add-slot {
   display: flex;
   width: 100%;
@@ -261,11 +282,12 @@ async function removeSlot() {
   color: var(--um-green);
   background: #f5f8f2;
 }
+/* =====  Planned recipe card ===== */
 .planned-recipe {
   display: block;
   width: 100%;
   overflow: hidden;
-  border: 0;
+  border: 0; /*button 默认有边框，去掉 */
   border-radius: 0.75rem;
   color: var(--um-ink);
   background: #f3f6f0;
@@ -278,14 +300,16 @@ async function removeSlot() {
   height: 3.9rem;
   object-fit: cover;
 }
+/* 卡片底部那行菜名 */
 .planned-recipe span {
-  display: block;
+  display: block;  /* 独占一行*/
   padding: 0.45rem;
 }
+/* ===== 弹窗遮罩层 / Modal backdrop ===== */
 .modal-backdrop-custom {
   position: fixed;
-  z-index: 1050;
-  inset: 0;
+  z-index: 1050;  /*盖在所有内容上面（Bootstrap 弹窗默认 1050）*/
+  inset: 0;  /*上下左右都是 0，铺满整个屏幕*/
   display: flex;
   align-items: center;
   justify-content: center;
@@ -306,10 +330,12 @@ async function removeSlot() {
   background: transparent;
   font-size: 1.25rem;
 }
+/* 弹窗里的 "Choose a recipe" */
 .form-heading {
   color: var(--um-ink);
   font-weight: 800;
 }
+/* 弹窗里选完食谱后出现的小预览卡片（图片 + 标题 + 时间） */
 .chosen-recipe {
   display: flex;
   gap: 0.75rem;
@@ -324,10 +350,13 @@ async function removeSlot() {
   border-radius: 0.5rem;
   object-fit: cover;
 }
+/* 预览卡片里的标题和时间。
+作用：让标题和时间各占一行 */
 .chosen-recipe strong,
 .chosen-recipe span {
   display: block;
 }
+/* 预览卡片里的 "35 min · Medium" */
 .chosen-recipe span {
   color: var(--um-muted);
   font-size: 0.8rem;

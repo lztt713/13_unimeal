@@ -1,10 +1,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { api } from '../services/api'
 
 const recipes = ref([])
 const loading = ref(true)
+// ID of the recipe being operated
 const busyId = ref(null)
 
 async function loadRecipes() {
@@ -17,21 +17,22 @@ async function loadRecipes() {
 }
 
 async function togglePublication(recipe) {
-  busyId.value = recipe.id
+  busyId.value = recipe.id  // 标记"这张卡片正在忙"
   try {
     await api.toggleRecipePublication(recipe.id)
-    await loadRecipes()
+    await loadRecipes()  // 重新拉数据刷新列表
   } finally {
-    busyId.value = null
+    busyId.value = null  // 解除"忙碌"标记
   }
 }
 
 async function removeRecipe(recipe) {
+  //window.confirm二次确认
   if (!window.confirm(`Delete “${recipe.title}”?`)) return
   busyId.value = recipe.id
   try {
     await api.deleteMyRecipe(recipe.id)
-    await loadRecipes()
+    await loadRecipes()   // 刷新列表
   } finally {
     busyId.value = null
   }
@@ -66,14 +67,17 @@ onMounted(loadRecipes)
         >
       </div>
       <div v-else class="row g-4">
+         <!--  Loop each recipe -->
         <article v-for="recipe in recipes" :key="recipe.id" class="col-md-6 col-xl-4">
           <div class="surface-card h-100 overflow-hidden">
+            <!-- 图片 -->
             <img
               class="recipe-image contributor-image"
               :src="recipe.imageUrl"
               :alt="recipe.title"
             />
             <div class="p-4">
+              <!-- 顶部：菜系标签 + 发布状态 -->
               <div class="d-flex justify-content-between gap-2">
                 <span class="soft-badge">{{ recipe.cuisine }}</span
                 ><span
@@ -82,23 +86,30 @@ onMounted(loadRecipes)
                   >{{ recipe.status || 'Published' }}</span
                 >
               </div>
+              <!-- 标题 + 元信息 -->
               <h2 class="contributor-title mt-3">{{ recipe.title }}</h2>
               <p class="text-secondary small">
                 {{ recipe.ingredients.length }} ingredients ·
                 {{ recipe.prepTime + recipe.cookTime }} min
               </p>
+               <!-- 三个操作按钮 -->
               <div class="d-flex flex-wrap gap-2 mt-3">
+                <!--  Edit: go to submit page in edit mode -->
                 <RouterLink
                   class="btn btn-outline-primary btn-sm rounded-pill"
                   :to="`/submit-recipe?edit=${recipe.id}`"
                   >Edit</RouterLink
-                ><button
+                >
+                <!-- Toggle publication -->
+                <button
                   class="btn btn-outline-primary btn-sm rounded-pill"
                   :disabled="busyId === recipe.id"
                   @click="togglePublication(recipe)"
                 >
                   {{ recipe.status === 'Published' ? 'Unpublish' : 'Publish' }}</button
-                ><button
+                >
+                <!--  Delete with confirm dialog -->
+                <button
                   class="btn btn-link btn-sm text-danger"
                   :disabled="busyId === recipe.id"
                   @click="removeRecipe(recipe)"
@@ -118,6 +129,7 @@ onMounted(loadRecipes)
 .contributor-image {
   height: 11rem;
 }
+/* 卡片里的食谱标题 */
 .contributor-title {
   color: var(--um-ink);
   font-size: 1.3rem;

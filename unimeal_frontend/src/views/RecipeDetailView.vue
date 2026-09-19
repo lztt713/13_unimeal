@@ -7,17 +7,41 @@ const props = defineProps({ id: { type: String, required: true } })
 const recipe = ref(null)
 const loading = ref(true)
 const selectedRating = ref(0)
-const ratingSaved = ref(false)
-const saved = ref(false)
+const ratingSaved = ref(false) // 是否刚评分成功
+const saved = ref(false)  // 是否已收藏
 const user = ref(null)
-const reportOpen = ref(false)
+
+const reportOpen = ref(false) // 举报弹窗是否打开
 const reportReason = ref('')
 const reportMessage = ref('')
-const commentText = ref('')
-const commentMessage = ref('')
+const commentText = ref('')  // 评论输入框内容
+const commentMessage = ref('')  // 评论反馈消息
 const commentError = ref(false)
 
+const reportTarget = ref(null)        // null=举报食谱，有值=举报该评论
+const reportCustomText = ref('')      // "Other concern" 时的补充文字
+
+
+// 评论举报的选项列表
+const commentReasons = [
+  'Spam or advertising',
+  'Offensive or inappropriate language',
+  'Misleading information',
+  'Off-topic or irrelevant',
+  'Other concern',
+]
+
+// 食谱举报的选项列表
+const recipeReasons = [
+  'Incorrect recipe information',
+  'Missing allergy warning',
+  'Inappropriate image or content',
+  'Other concern',
+]
+
+// 总时间 = 准备 + 烹饪
 const totalTime = computed(() => (recipe.value ? recipe.value.prepTime + recipe.value.cookTime : 0))
+// 过敏警告：用户过敏原 ∩ 食谱过敏原
 const allergyWarnings = computed(() => {
   const allergies = user.value?.allergies || []
   return (recipe.value?.allergenTags || []).filter((tag) =>
@@ -32,38 +56,72 @@ onMounted(async () => {
     api.getCurrentUser(),
   ])
   recipe.value = recipeData
-  saved.value = savedIds.includes(Number(props.id))
+  saved.value = savedIds.includes(Number(props.id))  // 判断这道菜是否已收藏
   user.value = currentUser
   loading.value = false
 })
 
 async function rateRecipe(rating) {
-  selectedRating.value = rating
+  selectedRating.value = rating  // 点亮星星
   recipe.value = await api.addRecipeRating(props.id, rating)
-  ratingSaved.value = true
+  ratingSaved.value = true  // 显示"已保存"
 }
-
+// 收藏切换
 async function toggleSaved() {
   saved.value = (await api.toggleSavedRecipe(props.id)).saved
 }
 
+// 打开"举报食谱"弹窗（清空之前的输入）
+function openReportRecipe() {
+  reportTarget.value = null
+  reportReason.value = ''
+  reportCustomText.value = ''
+  reportOpen.value = true
+}
+
+// 打开"举报评论"弹窗
+function openReportComment(comment) {
+  reportTarget.value = comment  // 记录要举报的评论
+  reportReason.value = ''
+  reportCustomText.value = ''
+  reportOpen.value = true
+}
 async function submitReport() {
   try {
-    await api.createContentReport({
-      targetType: 'Recipe',
-      targetId: recipe.value.id,
-      targetTitle: recipe.value.title,
-      reason: reportReason.value,
-    })
+    // 如果选了 "Other concern" 且有补充文字，拼接到 reason 里
+    const finalReason =
+      reportReason.value === 'Other concern' && reportCustomText.value.trim()
+        ? `Other concern: ${reportCustomText.value.trim()}`
+        : reportReason.value
+
+    // 根据 reportTarget 决定举报食谱还是评论
+    const payload = reportTarget.value
+      ? {
+          targetType: 'Comment',
+          targetId: reportTarget.value.id,
+          reason: finalReason,
+        }
+      : {
+          targetType: 'Recipe',
+          targetId: recipe.value.id,
+          reason: finalReason,
+        }
+
+    await api.createContentReport(payload)
     reportMessage.value = 'Thank you. Your report has been sent to the administrator.'
     reportOpen.value = false
+
+    // 清空所有状态
     reportReason.value = ''
+    reportCustomText.value = ''
+    reportTarget.value = null
   } catch (error) {
     reportMessage.value = error.message
   }
 }
 
 async function submitComment() {
+  // 空校验
   if (!commentText.value.trim()) {
     commentError.value = true
     commentMessage.value = 'Please write a comment before submitting.'
@@ -95,21 +153,26 @@ async function submitComment() {
         <RouterLink class="back-link" to="/recipes">Back to recipe library</RouterLink>
         <article class="surface-card overflow-hidden mt-3">
           <div class="row g-0">
+             <!-- Left: image -->
             <div class="col-lg-6 detail-image-wrap">
               <img class="recipe-image" :src="recipe.imageUrl" :alt="recipe.title" />
             </div>
+             <!-- Right: info + buttons -->
             <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-center">
+               <!-- Cuisine + dietary tags -->
               <div class="d-flex flex-wrap gap-2 mb-3">
                 <span class="soft-badge">{{ recipe.cuisine }}</span
                 ><span v-for="tag in recipe.dietaryTags" :key="tag" class="detail-tag">{{
                   tag
                 }}</span>
               </div>
+              <!-- Title + description -->
               <h1 class="detail-title">{{ recipe.title }}</h1>
               <p class="detail-copy">
                 A practical student recipe with clear portions, simple ingredients and estimated
                 cost per serving.
               </p>
+              <!-- Three meta: time / cost / servings -->
               <div class="row text-center g-2 my-3">
                 <div class="col-4">
                   <strong>{{ totalTime }} min</strong><span>Total time</span>
@@ -123,25 +186,18 @@ async function submitComment() {
                   ><span>Servings</span>
                 </div>
               </div>
+              <!-- Rating + action buttons -->
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-2">
                   <span class="recipe-rating">{{ recipe.rating }} / 5</span
                   ><span class="text-secondary small">from {{ recipe.reviewCount }} ratings</span>
                 </div>
+                <!--  Report recipe / Save -->
                 <div class="d-flex gap-2">
-                  <button
-                    v-if="user"
-                    class="btn btn-outline-secondary btn-sm"
-                    @click="reportOpen = true"
-                  >
-                    Report recipe</button
-                  ><RouterLink v-else class="btn btn-outline-secondary btn-sm" to="/login"
-                    >Log in to report</RouterLink
-                  ><button
-                    v-if="user"
-                    class="btn btn-outline-primary rounded-pill btn-sm"
-                    @click="toggleSaved"
-                  >
+                  <button class="btn btn-outline-secondary btn-sm" @click="openReportRecipe">
+                    Report recipe
+                  </button>
+                  <button class="btn btn-outline-primary rounded-pill btn-sm" @click="toggleSaved">
                     {{ saved ? 'Saved to favourites' : 'Save recipe' }}
                   </button>
                 </div>
@@ -150,11 +206,13 @@ async function submitComment() {
           </div>
         </article>
 
+        <!-- Allergy warning: only shows if user's and recipe's allergens intersect -->
         <div v-if="allergyWarnings.length" class="alert alert-warning mt-4 mb-0">
           <strong>Allergy warning:</strong> this recipe contains {{ allergyWarnings.join(', ') }}.
         </div>
 
         <div class="row g-4 mt-1">
+            <!-- Left: ingredients -->
           <div class="col-lg-4">
             <section class="surface-card p-4 h-100">
               <h2 class="section-heading">Ingredients</h2>
@@ -167,6 +225,7 @@ async function submitComment() {
               </ul>
             </section>
           </div>
+          <!-- Right: method -->
           <div class="col-lg-8">
             <section class="surface-card p-4 p-md-5">
               <h2 class="section-heading">Method</h2>
@@ -179,6 +238,7 @@ async function submitComment() {
             </section>
           </div>
         </div>
+            <!-- Rating section: 5 circular buttons-->
 
         <section class="surface-card p-4 p-md-5 mt-4">
           <div class="row g-4 align-items-center">
@@ -192,6 +252,7 @@ async function submitComment() {
                 role="group"
                 aria-label="Rate this recipe from one to five"
               >
+               <!-- 5 个评分按钮：selected 类控制选中态  -->
                 <button
                   v-for="rating in 5"
                   :key="rating"
@@ -210,6 +271,7 @@ async function submitComment() {
           </div>
         </section>
 
+         <!-- Comments section-->
         <section class="mt-5">
           <div class="d-flex align-items-end justify-content-between mb-3">
             <div>
@@ -218,21 +280,32 @@ async function submitComment() {
             </div>
             <span class="text-secondary small">{{ recipe.comments.length }} shown</span>
           </div>
+          <!-- Comment list -->
           <div v-if="recipe.comments.length" class="row g-3">
             <div v-for="comment in recipe.comments" :key="comment.id" class="col-md-6">
               <article class="surface-card p-4 h-100">
                 <div class="d-flex justify-content-between gap-2">
                   <strong>{{ comment.author }}</strong
                   ><span v-if="comment.rating" class="recipe-rating">{{ comment.rating }} / 5</span>
+                   <!-- Each comment can be reported -->
+                  <button
+                    v-if="user"
+                    class="btn btn-link btn-sm text-secondary p-0 report-comment-btn"
+                    @click="openReportComment(comment)"
+                  >
+                    Report
+                  </button>
                 </div>
                 <p class="mb-2 mt-3">{{ comment.text }}</p>
                 <small class="text-secondary">{{ comment.createdAt }}</small>
               </article>
             </div>
           </div>
+           <!-- Empty state -->
           <div v-else class="empty-state p-4">
             No comments yet. Be the first student to share a helpful tip.
           </div>
+          <!-- Comment form: students only -->
           <form
             v-if="user?.role === 'student'"
             class="surface-card p-4 mt-4"
@@ -267,25 +340,49 @@ async function submitComment() {
             <RouterLink to="/login">Log in</RouterLink> to leave a comment.
           </p>
         </section>
+        <!-- Report success message -->
         <p v-if="reportMessage" class="alert alert-success mt-4 mb-0">{{ reportMessage }}</p>
       </template>
+
+      <!-- 举报弹窗：一个弹窗处理食谱/评论两种举报 -->
       <div v-if="reportOpen" class="modal-backdrop-custom" @click.self="reportOpen = false">
         <section
-          class="report-modal surface-card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="report-title"
-        >
-          <h2 id="report-title" class="section-heading">Report recipe</h2>
-          <p class="text-secondary">Tell the administrator why this recipe needs review.</p>
+          class="report-modal surface-card">
+           <!-- 根据 reportTarget 切换  -->
+          <h2 id="report-title" class="section-heading">
+            {{ reportTarget ? 'Report comment' : 'Report recipe' }}</h2>
+          <p class="text-secondary">
+            {{ reportTarget
+              ? 'Tell the administrator why this comment needs review.'
+              : 'Tell the administrator why this recipe needs review.' }}
+          </p>
+
+          <!--  Dynamic option list -->
           <label class="form-label" for="report-reason">Reason</label
           ><select id="report-reason" v-model="reportReason" class="form-select">
             <option value="">Choose a reason</option>
-            <option>Incorrect recipe information</option>
-            <option>Missing allergy warning</option>
-            <option>Inappropriate image or content</option>
-            <option>Other concern</option>
+            <option
+              v-for="reason in (reportTarget ? commentReasons : recipeReasons)"
+              :key="reason"
+              :value="reason"
+            >
+              {{ reason }}
+            </option>
           </select>
+          <!-- "Other concern" 时显示的补充输入框 -->
+          <div v-if="reportReason === 'Other concern'" class="mt-3">
+            <label class="form-label" for="report-custom">Please describe the issue</label>
+            <textarea
+              id="report-custom"
+              v-model="reportCustomText"
+              class="form-control"
+              rows="3"
+              maxlength="200"
+              placeholder="Tell us what's wrong..."
+            ></textarea>
+            <small class="text-secondary">{{ reportCustomText.length }} / 200 characters</small>
+          </div>
+           <!-- Bottom buttons -->
           <div class="d-flex justify-content-end gap-2 mt-4">
             <button class="btn btn-outline-secondary" type="button" @click="reportOpen = false">
               Cancel</button
@@ -325,12 +422,12 @@ async function submitComment() {
   letter-spacing: -0.045em;
 }
 
-/* ===== 详情页主标题（响应式字体） ===== */
+/* ===== 详情页主标题 ===== */
 .detail-title {
   font-size: 2.5rem;
 }
 
-/* ===== 详情描述文字（作者、简介等） ===== */
+/* ===== 详情描述文字 ===== */
 .detail-copy {
   color: var(--um-muted);
   margin: 1rem 0;
@@ -346,21 +443,21 @@ async function submitComment() {
   font-weight: 750;
 }
 
-/* ===== 元信息卡片（时间 / 价格 / 难度中的数字） ===== */
+/* ===== 元信息卡片数字 ===== */
 .col-4 strong {
   display: block;
   color: var(--um-green);
   font-size: 1.1rem;
 }
 
-/* ===== 元信息卡片（时间 / 价格 / 难度中的标签文字） ===== */
+/* ===== 元信息卡片文字 ===== */
 .col-4 span {
   display: block;
   color: var(--um-muted);
   font-size: 0.72rem;
 }
 
-/* ===== 评分星星/数字 ===== */
+/* ===== 评分数字 ===== */
 .recipe-rating {
   color: #9c5a0c;
   font-weight: 800;
@@ -430,7 +527,7 @@ async function submitComment() {
   gap: 0.45rem;
 }
 
-/* ===== 评分按钮（点赞/踩） ===== */
+/* ===== 评分按钮 ===== */
 .rating-actions button {
   width: 2.25rem;
   height: 2.25rem;
@@ -455,7 +552,7 @@ async function submitComment() {
   font-size: 0.86rem;
   font-weight: 700;
 }
-
+/* ===== 弹窗遮罩 / Modal backdrop ===== */
 .modal-backdrop-custom {
   position: fixed;
   z-index: 1050;
@@ -466,6 +563,7 @@ async function submitComment() {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.45);
 }
+/* ===== 弹窗本体 / Modal body ===== */
 .report-modal {
   width: min(100%, 30rem);
   padding: 1.5rem;
@@ -479,6 +577,15 @@ async function submitComment() {
   border-color: #cfd9d3;
 }
 
+/* ===== 评论举报按钮 / Comment report button ===== */
+.report-comment-btn {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.report-comment-btn:hover {
+  color: var(--um-coral) !important;
+}
 /* ===== 平板/手机适配（屏幕宽度小于 992px） ===== */
 @media (max-width: 991.98px) {
   .detail-image-wrap {

@@ -22,6 +22,8 @@ const dietaryTags = computed(() =>
   [...new Set(recipes.value.flatMap((recipe) => recipe.dietaryTags || []))].sort(),
 )
 const cookingSkillMessage = computed(() => {
+  // 只有学生才显示这条提示
+  if (currentUser.value?.role !== 'student') return ''
   const skill = currentUser.value?.cookingSkill
   if (skill === 'Beginner') return 'Easy recipes are shown first for your Beginner cooking level.'
   if (skill === 'Comfortable') return 'Easy and Medium recipes are shown first for your cooking level.'
