@@ -1,30 +1,35 @@
-# AI & QA workspace
+# AI_qa(AI_Helper) 
+## Change
+* ### unimeal_backend\requirements.txt
+1. pydantic==2.12.5
+2. google-genai==2.22.0
 
-This folder is owned by the AI & QA Specialist. It contains local AI validation tools,
-prompt specifications, and test documentation; it must not contain API keys, personal
-data, or production database credentials.
+* ### unimeal_backend\app\schemas.py
 
-## Day 1: verify the Doubao connection
+* ### unimeal_frontend\src\views\AiHelperView.vue
+1. Change AI display to Gemini
+2. Change the layout
 
-1. Copy the repository-root `.env.example` to `.env`.
-2. Set `ARK_API_KEY` and an enabled `ARK_MODEL` in your local `.env` file.
-3. Run `python ai_qa/doubao_healthcheck.py` from the repository root.
 
-Record the model ID, configured timeout, result, and any redacted error category in
-`docs/qa/AI_CONNECTIVITY_REPORT.md`. Never paste an API key into that record.
+## New file
+* ### unimeal_backend\app\routers\aiHelper.py
+* ### ai_qa\README.md
+* ### ai_qa\healthyCheck.py
+* ### .venv(python 3.13)
+* ### unimeal_backend\app\services\aiRecommendation.py
 
-The script sends only a fixed, non-personal prompt and reports whether a usable text
-response was returned. It does not log the API key. A successful response is only a
-connectivity check, not evidence that meal-plan quality is acceptable.
-
-Run its offline checks with:
-
-```text
-python -m unittest discover -s ai_qa/tests -v
-```
-
-## Contents
-
-- `doubao_healthcheck.py` – minimal, dependency-free API connectivity check.
-- `prompt_templates/meal_plan_v1.md` – initial meal-plan prompt contract.
-- `tests/` – offline unit tests for request/configuration behaviour.
+## Start
+* ### python_requirements
+  python 3.13
+  1. open cmd in the 13_unimeal root directoryand type (.\.venv\Scripts\activate) to enter(.venv)
+  2. type following commands in the cmd to install requirements
+    ```python
+        py -m pip install --upgrade pip
+        py -m pip install -r unimeal_backend\requirements.txt
+    ```
+--------------------------------------------------------------
+* ### HEALTHY CHECK
+  1. Create a .env in the 13_unimeal root directory
+  2. Fill it in according to .env.example, and also enter your own GEMINI key
+  3. Run ```python ai_qa/healthyCheck.py ```in the 13_unimeal root directory to run the healthy check
+--------------------------------------------------------------

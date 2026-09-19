@@ -129,6 +129,9 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Visual Studio local workspace state
+.vs/
+
 # pnpm
 .pnpm-store
 
@@ -154,3 +157,4 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+

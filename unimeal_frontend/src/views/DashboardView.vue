@@ -154,6 +154,12 @@ async function replaceDinner() {
                   </div>
                 </div>
               </div>
+              <div v-else class="empty-state h-100 d-flex flex-column align-items-center justify-content-center p-5 text-center">
+                <p class="eyebrow">Tonight's dinner</p>
+                <h2>No dinner planned yet.</h2>
+                <p class="text-secondary">Add a dinner to today's meal-plan slot.</p>
+                <RouterLink class="btn btn-primary rounded-pill px-4" to="/calendar">Plan dinner</RouterLink>
+              </div>
             </article>
             <!-- 如果今晚没有安排晚餐，显示空状态 -->
             <article v-else class="surface-card h-100 p-4 p-xl-5">

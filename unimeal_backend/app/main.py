@@ -7,7 +7,7 @@ Run with:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import dashboard, planning, recipes
+from app.routers import dashboard, planning, recipes,aiHelper
 
 app = FastAPI(
     title="UniMeal API",
@@ -30,7 +30,7 @@ app.add_middleware(
 app.include_router(recipes.router)
 app.include_router(planning.router)
 app.include_router(dashboard.router)
-
+app.include_router(aiHelper.router)
 
 @app.get("/api/health")
 def health_check():

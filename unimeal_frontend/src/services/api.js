@@ -88,5 +88,5 @@ export const api = {
   toggleSavedRecipe: (id) => data(http.post(`/recipes/${id}/saved`)),
   getSavedRecipeIds: () => data(http.get('/saved-recipes')),
   // ===== AI =====
-  getAiRecommendation: (query) => data(http.post('/recommendations', { query })),
+  getAiRecommendation: (query) => data(http.post('/ai/recommendations',{ query },{ timeout: 30000 },),),
 }

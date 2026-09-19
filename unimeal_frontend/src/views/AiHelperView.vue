@@ -73,11 +73,11 @@ function useExample(example) {
         <article class="surface-card p-4 p-md-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
             <div>
-              <p class="eyebrow">Recipe suggestions</p>
+              <p class="eyebrow">{{ result.mode === 'live' ? 'Live AI recommendation' : 'Database recommendation' }}</p>
               <h2 class="ai-heading">Your meal ideas</h2>
               <p class="text-secondary mb-0">{{ result.summary }}</p>
             </div>
-            <span class="soft-badge align-self-md-start">Local recipe matching</span>
+            <span class="soft-badge align-self-md-start">{{ result.mode === 'live' ? 'Gemini' : 'Database fallback' }}</span>
           </div>
           <div class="row g-4 mt-2">
             <div v-for="recipe in result.recipes" :key="recipe.id" class="col-md-6 col-xl-4">
