@@ -25,6 +25,7 @@ from app.schemas import (
     MealPlanEntryWrite,
     MealPlanResponse,
     PersistedShoppingListResponse,
+    ShoppingPurchaseWrite,
 )
 
 router = APIRouter(prefix="/api", tags=["planning"])
@@ -262,6 +263,59 @@ def _sync_existing_shopping_list(
         _generate_shopping_list(db, user_id, plan)
 
 
+# LZTT: Supply notification candidates; the notification module owns persistence and deduplication.
+# 梁子豪：提供提醒触发条件；通知模块负责保存和去重。
+def planning_reminder_candidates(
+    db: Session, user_id: int, reference_date: date | None = None
+) -> list[dict[str, str]]:
+    today = reference_date or date.today()
+    tomorrow = today + timedelta(days=1)
+    reminders = []
+
+    tomorrow_meal = (
+        db.query(MealPlanEntry)
+        .join(MealPlan)
+        .join(Recipe, MealPlanEntry.recipe_id == Recipe.recipe_id)
+        .filter(
+            MealPlan.user_id == user_id,
+            MealPlanEntry.planned_date == tomorrow,
+            Recipe.status == "published",
+        )
+        .first()
+    )
+    if tomorrow_meal is not None:
+        reminders.append(
+            {
+                "type": "meal_plan",
+                "title": "Tomorrow's meals",
+                "message": "You have meals planned for tomorrow.",
+                "dedupe_key": f"meal_plan:{user_id}:{tomorrow.isoformat()}",
+            }
+        )
+
+    unpurchased_item = (
+        db.query(ShoppingListItem)
+        .join(ShoppingList)
+        .filter(
+            ShoppingList.user_id == user_id,
+            ShoppingList.status == "active",
+            ShoppingListItem.is_purchased.is_(False),
+        )
+        .first()
+    )
+    if unpurchased_item is not None:
+        reminders.append(
+            {
+                "type": "shopping_list",
+                "title": "Shopping list reminder",
+                "message": "Your shopping list still has unpurchased items.",
+                "dedupe_key": f"shopping_list:{user_id}:{today.isoformat()}",
+            }
+        )
+
+    return reminders
+
+
 def _shopping_response(shopping_list: ShoppingList | None, plan: MealPlan | None) -> dict:
     items = list(shopping_list.items) if shopping_list else []
     recipe_ids = sorted({int(entry.recipe_id) for entry in plan.entries}) if plan else []
@@ -424,6 +478,7 @@ def toggle_shopping_item(
     item_id: int,
     db: Session = Depends(get_db),
     student: User = Depends(student_user),
+    payload: ShoppingPurchaseWrite | None = None,
 ):
     item = (
         db.query(ShoppingListItem)
@@ -431,6 +486,7 @@ def toggle_shopping_item(
         .filter(
             ShoppingListItem.shopping_list_item_id == item_id,
             ShoppingList.user_id == student.user_id,
+            ShoppingList.status == "active",
         )
         .first()
     )
@@ -441,7 +497,9 @@ def toggle_shopping_item(
     item.is_purchased = not bool(item.is_purchased)
     if item.is_purchased:
         item.purchased_at = datetime.now()
-        if item.actual_cost is None:
+        if payload is not None:
+            item.actual_cost = payload.actual_cost
+        elif item.actual_cost is None:
             source_price = (
                 item.ingredient.estimated_unit_cost
                 if item.ingredient is not None

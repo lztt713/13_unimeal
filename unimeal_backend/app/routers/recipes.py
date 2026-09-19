@@ -62,9 +62,16 @@ def _db_status(value: str | None) -> str:
     return (value or "draft").strip().lower()
 
 
-def _price_per_serving(recipe: Recipe) -> float:
+def _price_per_serving(recipe: Recipe, ingredient_details: list[dict]) -> float:
     servings = int(recipe.servings or 1)
-    return round(float(recipe.estimated_cost or 0) / servings, 2)
+    # Keep recipe cards aligned with the shopping list's ingredient pricing.
+    # No-ingredient legacy recipes retain their stored estimate.
+    total = (
+        sum(item["quantity"] * item["unit_price"] for item in ingredient_details)
+        if ingredient_details
+        else float(recipe.estimated_cost or 0)
+    )
+    return round(total / servings, 2)
 
 
 def _rating_summary(db: Session, recipe_id: int) -> tuple[float, int]:
@@ -179,7 +186,7 @@ def _recipe_to_response(recipe: Recipe, db: Session) -> dict:
         "prep_time": int(recipe.preparation_minutes or 0),
         "cook_time": int(recipe.cooking_minutes or 0),
         "servings": int(recipe.servings or 1),
-        "estimated_cost": _price_per_serving(recipe),
+        "estimated_cost": _price_per_serving(recipe, ingredient_details),
         "rating": rating,
         "review_count": review_count,
         "status": _display_status(recipe.status),

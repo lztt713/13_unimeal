@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -252,6 +253,14 @@ class PersistedShoppingListResponse(BaseModel):
     status: str = "active"
     items: list[PersistedShoppingItemResponse] = Field(default_factory=list)
     total_estimated_cost: float = Field(default=0.0, alias="totalEstimatedCost")
+
+
+class ShoppingPurchaseWrite(BaseModel):
+    """Optional receipt amount supplied when marking an item purchased."""
+
+    model_config = api_model_config
+
+    actual_cost: Decimal = Field(alias="actualCost", ge=0, max_digits=10, decimal_places=2)
 
 
 class BudgetPeriodResponse(BaseModel):

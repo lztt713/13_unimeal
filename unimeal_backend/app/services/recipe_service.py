@@ -22,6 +22,18 @@ def _tag_search_value(tag: str) -> str:
     return tag.strip().replace("-", " ")
 
 
+def _price_per_serving_expression():
+    """Use the same ingredient-based estimate as generated shopping lists."""
+    ingredient_total = (
+        select(func.sum(RecipeIngredient.quantity * Ingredient.estimated_unit_cost))
+        .join(Ingredient, RecipeIngredient.ingredient_id == Ingredient.ingredient_id)
+        .where(RecipeIngredient.recipe_id == Recipe.recipe_id)
+        .correlate(Recipe)
+        .scalar_subquery()
+    )
+    return func.coalesce(ingredient_total, Recipe.estimated_cost) / func.nullif(Recipe.servings, 0)
+
+
 def search_recipes(
     db: Session,
     params: RecipeSearchParams,
@@ -53,8 +65,7 @@ def search_recipes(
         query = query.filter(Recipe.difficulty == params.difficulty.lower())
 
     if params.price_max is not None:
-        price_per_serving = Recipe.estimated_cost / func.nullif(Recipe.servings, 0)
-        query = query.filter(price_per_serving <= params.price_max)
+        query = query.filter(_price_per_serving_expression() <= params.price_max)
 
     if params.dietary_tags:
         for tag in params.dietary_tags:
@@ -71,7 +82,7 @@ def search_recipes(
         .where(RecipeRating.recipe_id == Recipe.recipe_id)
         .scalar_subquery()
     )
-    cost_per_serving = Recipe.estimated_cost / func.nullif(Recipe.servings, 0)
+    cost_per_serving = _price_per_serving_expression()
     cook_time = Recipe.preparation_minutes + Recipe.cooking_minutes
     sort_column = {
         "rating": rating_subquery,
