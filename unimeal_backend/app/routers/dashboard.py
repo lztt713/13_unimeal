@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import student_user
 from app.database import get_db
-from app.models import MealPlan, MealPlanEntry, User
+from app.models import MealPlan, MealPlanEntry, Recipe, User
 from app.routers.planning import budget_summary_for_user
 from app.routers.recipes import _recipe_to_response
 from app.schemas import DashboardResponse
@@ -31,6 +31,7 @@ def get_dashboard(
             MealPlan.user_id == student.user_id,
             MealPlanEntry.planned_date == date.today(),
             MealPlanEntry.meal_type == "dinner",
+            MealPlanEntry.recipe.has(Recipe.status == "published"),
         )
         .first()
     )
