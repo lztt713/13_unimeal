@@ -1,0 +1,152 @@
+"""Notification read/query endpoints with reminder deduplication.
+
+Reminder trigger conditions are supplied by the planning module; this module
+owns persistence, deduplication and the read/unread API.
+
+张展赫 (Zhang Zhanhe / ZZH): 通知模块。梁子豪的 planning_reminder_candidates 提供
+触发条件，本模块负责数据库写入、去重和已读接口。
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.auth import get_current_user
+from app.database import get_db
+from app.models import Notification, User
+from app.routers.planning import planning_reminder_candidates
+from app.schemas import NotificationResponse
+
+router = APIRouter(prefix="/api", tags=["notifications"])
+
+# ZZH: 梁子豪给的触发类型是 meal_plan/shopping_list，数据库枚举是 meal_reminder/
+# shopping_reminder，前端展示名是 "Meal reminder"/"Shopping reminder"，这里做两层映射。
+# The planning module emits generic kinds, the DB stores enum values and the
+# frontend renders labels — map each layer explicitly.
+CANDIDATE_TYPE_MAP = {
+    "meal_plan": "meal_reminder",
+    "shopping_list": "shopping_reminder",
+}
+NOTIFICATION_TYPE_DISPLAY = {
+    "meal_reminder": "Meal reminder",
+    "shopping_reminder": "Shopping reminder",
+    "recipe_update": "Recipe update",
+    "system": "System",
+}
+
+
+def _notification_response(notification: Notification) -> dict:
+    return {
+        "id": int(notification.notification_id),
+        "type": NOTIFICATION_TYPE_DISPLAY.get(
+            notification.notification_type, notification.notification_type
+        ),
+        "title": notification.title,
+        "message": notification.message,
+        "created_at": notification.created_at.isoformat() if notification.created_at else None,
+        "read": notification.read_at is not None,
+    }
+
+
+def sync_notifications(db: Session, user_id: int) -> None:
+    """Create any missing reminders for the user, deduplicated by dedupe_key.
+
+    去重核心：每个触发条件带一个 dedupe_key（如 meal_plan:{uid}:{date}），
+    同一用户 + 同一 key 已存在就跳过，避免重复提醒被反复写入。
+    """
+    for candidate in planning_reminder_candidates(db, user_id):
+        dedupe_key = candidate.get("dedupe_key")
+        if dedupe_key and (
+            db.query(Notification)
+            .filter(Notification.user_id == user_id, Notification.dedupe_key == dedupe_key)
+            .first()
+            is not None
+        ):
+            continue
+        db.add(
+            Notification(
+                user_id=user_id,
+                notification_type=CANDIDATE_TYPE_MAP.get(candidate["type"], "system"),
+                title=candidate["title"],
+                message=candidate["message"],
+                dedupe_key=dedupe_key,
+                created_at=datetime.now(),
+            )
+        )
+    db.commit()
+
+
+def _list(db: Session, user_id: int) -> list[dict]:
+    notifications = (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id)
+        .order_by(Notification.created_at.desc(), Notification.notification_id.desc())
+        .all()
+    )
+    return [_notification_response(notification) for notification in notifications]
+
+
+def list_notifications(db: Session, user: User) -> list[dict]:
+    sync_notifications(db, user.user_id)
+    return _list(db, user.user_id)
+
+
+def mark_notification_read(db: Session, user: User, notification_id: int) -> dict:
+    notification = (
+        db.query(Notification)
+        .filter(
+            Notification.notification_id == notification_id,
+            Notification.user_id == user.user_id,
+        )
+        .first()
+    )
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    if notification.read_at is None:
+        notification.read_at = datetime.now()
+        db.commit()
+        db.refresh(notification)
+    return _notification_response(notification)
+
+
+def mark_all_notifications_read(db: Session, user: User) -> list[dict]:
+    now = datetime.now()
+    for notification in (
+        db.query(Notification)
+        .filter(Notification.user_id == user.user_id, Notification.read_at.is_(None))
+        .all()
+    ):
+        notification.read_at = now
+    db.commit()
+    return _list(db, user.user_id)
+
+
+# ZZH: 列表接口在返回前先同步一次提醒，这样"明天有餐/购物清单未购"会即时出现。
+# Listing first syncs reminders so new triggers appear without a cron job.
+@router.get("/notifications", response_model=list[NotificationResponse])
+def get_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """List the current user's notifications, syncing pending reminders first."""
+    return list_notifications(db, user)
+
+
+# ZZH: 单条已读：按 notification_id + user_id 联合过滤，保证只能改自己的通知。
+# Filter by both id and user_id so a user can only mark their own notification.
+@router.patch("/notifications/{notification_id}/read", response_model=NotificationResponse)
+def read_notification(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Mark one of the current user's notifications as read."""
+    return mark_notification_read(db, user, notification_id)
+
+
+# ZZH: 全部已读：把当前用户所有 read_at 为空的记录一次性置为已读。
+# Marks every unread notification for the current user as read in one go.
+@router.patch("/notifications/read-all", response_model=list[NotificationResponse])
+def read_all_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Mark every notification for the current user as read."""
+    return mark_all_notifications_read(db, user)

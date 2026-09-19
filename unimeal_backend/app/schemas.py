@@ -286,3 +286,114 @@ class BudgetSummaryResponse(BaseModel):
     period: BudgetPeriodResponse
     actual_spent: float = Field(alias="actualSpent")
     categories: list[BudgetCategoryResponse] = Field(default_factory=list)
+
+
+# ZZH: 认证/通知/举报/管理员相关的请求响应模型。字段名用 snake_case，
+# 通过 alias 输出 camelCase，与前端 src/services/api.js 约定一致。
+# Request/response schemas for auth, notifications, reports and admin. Field
+# names are snake_case with camelCase aliases matching the frontend contract.
+class UserResponse(BaseModel):
+    """Current-user profile returned by auth and profile endpoints."""
+
+    model_config = api_model_config
+
+    id: int
+    display_name: str = Field(alias="displayName")
+    email: str
+    role: str
+    weekly_budget: float = Field(default=0.0, alias="weeklyBudget")
+    cooking_skill: str = Field(default="Beginner", alias="cookingSkill")
+    kitchen_access: str = Field(default="Shared kitchen", alias="kitchenAccess")
+    dietary_preferences: list[str] = Field(default_factory=list, alias="dietaryPreferences")
+    allergies: list[str] = Field(default_factory=list)
+    favourite_cuisines: list[str] = Field(default_factory=list, alias="favouriteCuisines")
+
+
+class RegisterRequest(BaseModel):
+    """Request body for account registration."""
+
+    model_config = api_model_config
+
+    name: str = Field(..., min_length=1, max_length=80)
+    email: str = Field(..., min_length=3, max_length=254)
+    password: str = Field(..., min_length=8, max_length=128)
+    role: str = Field(default="student")
+
+
+class LoginRequest(BaseModel):
+    """Request body for account login."""
+
+    model_config = api_model_config
+
+    email: str = Field(..., min_length=3, max_length=254)
+    password: str = Field(..., min_length=1)
+
+
+class ProfileUpdate(BaseModel):
+    """Partial profile update body. Preference lists replace the stored values."""
+
+    model_config = api_model_config
+
+    display_name: str | None = Field(default=None, min_length=1, max_length=80, alias="displayName")
+    weekly_budget: float | None = Field(default=None, ge=0, alias="weeklyBudget")
+    cooking_skill: str | None = Field(default=None, alias="cookingSkill")
+    kitchen_access: str | None = Field(default=None, alias="kitchenAccess")
+    dietary_preferences: list[str] | None = Field(default=None, alias="dietaryPreferences")
+    allergies: list[str] | None = None
+    favourite_cuisines: list[str] | None = Field(default=None, alias="favouriteCuisines")
+
+
+class CommentCreate(BaseModel):
+    """Request body for posting a recipe comment."""
+
+    model_config = api_model_config
+
+    text: str = Field(..., min_length=1, max_length=500)
+
+
+class NotificationResponse(BaseModel):
+    """A single user notification."""
+
+    model_config = api_model_config
+
+    id: int
+    type: str
+    title: str
+    message: str
+    created_at: str | None = Field(default=None, alias="createdAt")
+    read: bool = False
+
+
+class ReportCreate(BaseModel):
+    """Request body for reporting a recipe or comment."""
+
+    model_config = api_model_config
+
+    target_type: str = Field(..., alias="targetType", pattern=r"^(Recipe|Comment)$")
+    target_id: int = Field(..., alias="targetId", gt=0)
+    reason: str = Field(..., min_length=1, max_length=255)
+
+
+class ReportStatusUpdate(BaseModel):
+    """Administrator action changing a report's status."""
+
+    status: str = Field(..., min_length=1, max_length=20)
+
+
+class AdminUserUpdate(BaseModel):
+    """Administrator action changing a user's role and/or active status."""
+
+    role: str | None = None
+    status: str | None = None
+
+
+class AdminRecipeStatusUpdate(BaseModel):
+    """Administrator action changing a recipe's visibility status."""
+
+    status: str = Field(..., min_length=1, max_length=20)
+
+
+class IngredientCategoryCreate(BaseModel):
+    """Request body for adding an ingredient category."""
+
+    name: str = Field(..., min_length=1, max_length=60)

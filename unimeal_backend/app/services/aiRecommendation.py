@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from google import genai
 from pydantic import BaseModel, Field
 
 from sqlalchemy.orm import Session
@@ -68,6 +67,9 @@ def recommend_recipes(db:Session, query: str) -> dict:
     ]
 
     try:
+        # Lazy import: keep the app bootable when google-genai is not installed.
+        from google import genai
+
         api_key = os.getenv("GEMINI_API_KEY").strip()
         model= os.environ.get("GEMINI_MODEL").strip()
 

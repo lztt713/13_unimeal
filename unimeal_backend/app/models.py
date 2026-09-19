@@ -41,6 +41,34 @@ saved_recipes = Table(
 )
 
 
+# ZZH: 用户饮食偏好 / 过敏原关联表（对应胡启辰 master_schema 里的两张多对多表）。
+# Many-to-many junction tables for user dietary preferences and allergies.
+user_dietary_preferences = Table(
+    "user_dietary_preferences",
+    Base.metadata,
+    Column("user_id", BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "dietary_tag_id",
+        SmallInteger,
+        ForeignKey("dietary_tags.dietary_tag_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
+user_allergies = Table(
+    "user_allergies",
+    Base.metadata,
+    Column("user_id", BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "allergy_id",
+        SmallInteger,
+        ForeignKey("allergies.allergy_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Role(Base):
     """Application role such as student, contributor, or administrator."""
 
@@ -65,6 +93,7 @@ class User(Base):
     cooking_skill = Column(String(20), nullable=False, default="beginner")
     kitchen_access = Column(String(20), nullable=False, default="shared")
     favourite_cuisines_note = Column(String(255))
+    weekly_budget = Column(Numeric(10, 2), nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -75,6 +104,12 @@ class User(Base):
     budget_periods = relationship("BudgetPeriod", back_populates="user")
     meal_plans = relationship("MealPlan", back_populates="user", cascade="all, delete-orphan")
     shopping_lists = relationship("ShoppingList", back_populates="user", cascade="all, delete-orphan")
+    allergies = relationship("Allergy", secondary=user_allergies, back_populates="users")
+    dietary_preferences = relationship(
+        "DietaryTag", secondary=user_dietary_preferences, back_populates="users_with_preference"
+    )
+    comments = relationship("RecipeComment", back_populates="author", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 class Cuisine(Base):
@@ -98,6 +133,20 @@ class DietaryTag(Base):
     description = Column(String(255))
 
     recipes = relationship("Recipe", secondary=recipe_dietary_tags, back_populates="dietary_tags")
+    users_with_preference = relationship(
+        "User", secondary=user_dietary_preferences, back_populates="dietary_preferences"
+    )
+
+
+class Allergy(Base):
+    """Allergen lookup table used by user profile allergy preferences."""
+
+    __tablename__ = "allergies"
+
+    allergy_id = Column(SmallInteger, primary_key=True, autoincrement=True)
+    allergy_name = Column(String(80), nullable=False, unique=True)
+
+    users = relationship("User", secondary=user_allergies, back_populates="allergies")
 
 
 class IngredientCategory(Base):
@@ -185,6 +234,7 @@ class Recipe(Base):
     )
     saved_by = relationship("User", secondary=saved_recipes, back_populates="saved_recipes")
     ratings = relationship("RecipeRating", back_populates="recipe", cascade="all, delete-orphan")
+    comments = relationship("RecipeComment", back_populates="recipe", cascade="all, delete-orphan")
 
 
 class RecipeIngredient(Base):
@@ -331,3 +381,68 @@ class ShoppingListItem(Base):
     shopping_list = relationship("ShoppingList", back_populates="items")
     ingredient = relationship("Ingredient", back_populates="shopping_list_items")
     measurement_unit = relationship("MeasurementUnit", back_populates="shopping_list_items")
+
+
+class RecipeComment(Base):
+    """A user's comment on a recipe.
+
+    对应 master_schema 的 recipe_comments 表（is_hidden 标记被管理员隐藏的评论）。
+    """
+
+    __tablename__ = "recipe_comments"
+
+    recipe_comment_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    recipe_id = Column(BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    comment_text = Column(Text, nullable=False)
+    is_hidden = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    recipe = relationship("Recipe", back_populates="comments")
+    author = relationship("User", back_populates="comments")
+
+
+class Notification(Base):
+    """A user notification (meal plan, shopping list, recipe update or system).
+
+    dedupe_key 用于去重（本模块新增，见迁移脚本）；read_at 为空表示未读。
+    """
+
+    __tablename__ = "notifications"
+
+    notification_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    notification_type = Column(String(30), nullable=False)
+    title = Column(String(160), nullable=False)
+    message = Column(Text, nullable=False)
+    dedupe_key = Column(String(255))
+    scheduled_for = Column(DateTime)
+    read_at = Column(DateTime)
+    created_at = Column(DateTime)
+
+    user = relationship("User", back_populates="notifications")
+
+
+class ContentReport(Base):
+    """A report against one recipe or one comment, reviewed by an administrator.
+
+    recipe_id 和 recipe_comment_id 二选一（数据库有 CHECK 约束保证）。
+    """
+
+    __tablename__ = "content_reports"
+
+    content_report_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    reporter_user_id = Column(BigInteger, ForeignKey("users.user_id"), nullable=False)
+    recipe_id = Column(BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"))
+    recipe_comment_id = Column(BigInteger, ForeignKey("recipe_comments.recipe_comment_id", ondelete="CASCADE"))
+    reason = Column(String(255), nullable=False)
+    status = Column(String(20), nullable=False, default="open")
+    reviewed_by_user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="SET NULL"))
+    reviewed_at = Column(DateTime)
+    created_at = Column(DateTime)
+
+    reporter = relationship("User", foreign_keys=[reporter_user_id])
+    reviewer = relationship("User", foreign_keys=[reviewed_by_user_id])
+    recipe = relationship("Recipe")
+    comment = relationship("RecipeComment")
