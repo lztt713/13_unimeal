@@ -8,6 +8,7 @@ const route = useRoute()
 const ingredients = ref([])
 const submitted = ref(false)
 const errors = ref([])
+// ---------- Image upload state ----------
 const imageInput = ref(null)
 const selectedImage = ref(null)
 const localPreviewUrl = ref('')
@@ -21,13 +22,14 @@ const form = ref({
   difficulty: 'Easy',
   prepTime: 10,
   cookTime: 20,
-  servings: 2,
+  servings: 1,
   estimatedCost: 0,
   dietaryTags: [],
   ingredients: [{ ingredientId: '', quantity: '', unit: 'g' }],
   steps: [''],
 })
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
+// 优先本地图片 → 其次 URL → 最后默认占位图
 const previewUrl = computed(
   () =>
     localPreviewUrl.value ||
@@ -36,10 +38,14 @@ const previewUrl = computed(
 )
 
 onMounted(async () => {
+  // 先拿所有食材（下拉框用）
   ingredients.value = await api.getIngredients()
+   // 如果不是编辑模式，直接结束
   if (!route.query.edit) return
+  // 编辑模式：拿要编辑的食谱数据
   const recipe = await api.getRecipe(route.query.edit)
   if (!recipe) return
+  // 把食谱数据填充到表单
   form.value = {
     title: recipe.title,
     imageUrl: recipe.imageUrl,
@@ -62,9 +68,11 @@ function addIngredient() {
   form.value.ingredients.push({ ingredientId: '', quantity: '', unit: 'g' })
 }
 function removeIngredient(index) {
+  // 至少保留一行
   if (form.value.ingredients.length > 1) form.value.ingredients.splice(index, 1)
 }
 function setIngredientUnit(row) {
+   // 用户选了食材后，自动填入它的默认单位
   const item = ingredients.value.find((ingredient) => ingredient.id === Number(row.ingredientId))
   if (item) row.unit = item.defaultUnit
 }
@@ -87,24 +95,29 @@ function selectImage(event) {
   const file = event.target.files?.[0]
   if (!file) return
   imageError.value = ''
+  // 类型校验
   if (!acceptedImageTypes.includes(file.type)) {
     imageError.value = 'Choose a JPG, PNG, or WEBP image.'
     event.target.value = ''
     return
   }
+  // 大小校验
   if (file.size > maxImageSize) {
     imageError.value = 'Choose an image smaller than 5 MB.'
     event.target.value = ''
     return
   }
+  // 释放旧的 blob URL（如果之前选过图片）
   if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value)
+  // 保存文件 + 创建 blob URL 用于预览
   selectedImage.value = file
   localPreviewUrl.value = URL.createObjectURL(file)
 }
-
+// 组件销毁时清理 blob URL
 onBeforeUnmount(clearSelectedImage)
 
 async function submitRecipe() {
+    // ---------- 前端校验 ----------
   errors.value = []
   if (!form.value.title.trim()) errors.value.push('Recipe title is required.')
   if (!form.value.cuisine.trim()) errors.value.push('Cuisine is required.')
@@ -114,6 +127,7 @@ async function submitRecipe() {
   if (form.value.steps.some((step) => !step.trim()))
     errors.value.push('Each method step needs text.')
   if (errors.value.length) return
+  // ---------- 组装食材详情 ----------
   const details = form.value.ingredients.map((row) => ({
     ingredientId: Number(row.ingredientId),
     name: ingredients.value.find((item) => item.id === Number(row.ingredientId)).name,
@@ -122,17 +136,22 @@ async function submitRecipe() {
   }))
   const payload = {
     ...form.value,
+     // 把字符串转成数字（input 拿到的都是字符串）
     prepTime: Number(form.value.prepTime),
     cookTime: Number(form.value.cookTime),
     servings: Number(form.value.servings),
     estimatedCost: Number(form.value.estimatedCost),
+     // 冗余字段：食材名数组（给搜索用）
     ingredients: details.map((item) => item.name.toLowerCase()),
+     // 完整食材信息（含 ID、数量、单位）
     ingredientDetails: details,
+    // 步骤文本去空格
     steps: form.value.steps.map((step) => step.trim()),
   }
+   // -------根据模式调不同接口 ----------
   const recipe = route.query.edit
-    ? await api.updateRecipe(route.query.edit, payload)
-    : await api.createRecipe(payload)
+    ? await api.updateRecipe(route.query.edit, payload) // 编辑
+    : await api.createRecipe(payload)  // 新建
   submitted.value = true
   setTimeout(() => router.push(`/recipes/${recipe.id}`), 700)
 }
@@ -319,6 +338,7 @@ async function submitRecipe() {
           <section class="surface-card p-4 sticky-lg-top preview-card">
             <h2 class="form-heading">Image preview</h2>
             <img class="preview-image" :src="previewUrl" alt="Recipe preview" />
+            <!-- 隐藏的 file input（用 label 触发） -->
             <input
               id="image-file"
               ref="imageInput"
@@ -327,6 +347,7 @@ async function submitRecipe() {
               accept="image/jpeg,image/png,image/webp"
               @change="selectImage"
             />
+            <!-- ②用 label 假装是一个按钮 -->
             <label class="file-picker" for="image-file">Choose image</label>
             <span class="file-name">{{ selectedImage ? selectedImage.name : 'No file selected' }}</span>
             <p v-if="selectedImage" class="small text-secondary mt-2 mb-0">

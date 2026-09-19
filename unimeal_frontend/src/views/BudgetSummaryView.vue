@@ -3,22 +3,57 @@ import { Chart, BarElement, BarController, CategoryScale, LinearScale, Tooltip }
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from '../services/api'
 
+// Register Chart.js components
 Chart.register(BarElement, BarController, CategoryScale, LinearScale, Tooltip)
 const summary = ref(null)
 const chartCanvas = ref(null)
-let chart
+let chart //Chart.js 实例（不需要响应式，所以用 let）
+
+// ---------- 剩余金额 remaining ----------
 const remaining = computed(() =>
   summary.value ? summary.value.period.budgetAmount - summary.value.actualSpent : 0,
 )
+// ---------- 已用百分比  used percentage -----
 const usedPercent = computed(() =>
   summary.value?.period.budgetAmount > 0
     ? Math.min(100, (summary.value.actualSpent / summary.value.period.budgetAmount) * 100)
     : 0,
 )
 
+// ---------- 动态提示：根据预算状态返回不同文案 ----------
+const budgetMessage = computed(() => {
+  if (!summary.value) return null
+
+  const percent = usedPercent.value
+
+  if (percent >= 100) {
+    return {
+      title: 'Budget exceeded',
+      text: 'You have gone over your weekly limit. Consider cheaper options for the rest of the week.',
+      type: 'warning',
+    }
+  }
+
+  if (percent >= 80) {
+    return {
+      title: 'Getting close',
+      text: 'You have used most of your weekly budget. Plan carefully for the remaining days.',
+      type: 'warning',
+    }
+  }
+
+  return {
+    title: 'On track',
+    text: `You still have $${remaining.value.toFixed(2)} left this week. Keep it up!`,
+    type: 'success',
+  }
+})
+// ---------- 生命周期：加载数据 + 初始化图表 /
 onMounted(async () => {
   summary.value = await api.getBudgetSummary()
+  // Wait for Vue to finish DOM update, ensure <canvas> is rendered
   await nextTick()
+   // Initialize Chart.js bar chart on canvas
   chart = new Chart(chartCanvas.value, {
     type: 'bar',
     data: {
@@ -29,7 +64,7 @@ onMounted(async () => {
           data: [summary.value.actualSpent],
           backgroundColor: '#31572c',
           borderRadius: 8,
-          barThickness: 48,
+          barThickness: 48, // 柱子宽度 48px
         },
         {
           label: 'Budget',
@@ -41,21 +76,23 @@ onMounted(async () => {
       ],
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { tooltip: { displayColors: false } },
+      responsive: true,  // 跟随容器大小自动调整
+      maintainAspectRatio: false,  // 不保持固定比例，允许自由伸缩
+      plugins: { tooltip: { displayColors: false } },  // 鼠标悬停提示不显示颜色小方块
       scales: {
-        x: { grid: { display: false }, border: { display: false } },
+        x: { grid: { display: false }, border: { display: false } },// X 轴不要网格线,轴线
         y: {
           beginAtZero: true,
           grid: { color: '#efede6' },
           border: { display: false },
-          ticks: { callback: (value) => `$${value}` },
+          ticks: { callback: (value) => `$${value}` }, // 每个刻度加上美元符号
         },
       },
     },
   })
 })
+// - Cleanup before unmount --
+//  Destroy chart to prevent memory leak
 onBeforeUnmount(() => chart?.destroy())
 </script>
 
@@ -71,32 +108,32 @@ onBeforeUnmount(() => chart?.destroy())
           <p class="page-subtitle">A clear view of your purchased food costs and weekly budget.</p>
         </div>
         <RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/shopping-list"
-          >View shopping list</RouterLink
-        >
+          >View shopping list</RouterLink>
       </div>
+      <!-- 加载中 / Loading -->
       <div v-if="!summary" class="py-5 text-center text-secondary">Loading budget summary...</div>
       <template v-else
         ><div class="row g-4">
+           <!-- Left (7/12): Bar chart -->
           <div class="col-lg-7">
             <section class="surface-card p-4 p-md-5 chart-card h-100">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <h2 class="budget-heading">Spent vs budget</h2>
+                  <!--  Show date range -->
                   <p class="text-secondary mb-0">
                     {{ summary.period.startDate }} to {{ summary.period.endDate }}
                   </p>
                 </div>
                 <span class="soft-badge">Current week</span>
               </div>
+              <!-- Chart.js canvas -->
               <div class="chart-wrap mt-4">
-                <canvas
-                  ref="chartCanvas"
-                  aria-label="Bar chart comparing weekly spending and budget"
-                  role="img"
-                ></canvas>
+                <canvas ref="chartCanvas"></canvas>
               </div>
             </section>
           </div>
+          <!-- Right (5/12): Remaining budget + progress bar -->
           <div class="col-lg-5">
             <section class="surface-card p-4 p-md-5 h-100">
               <p class="eyebrow">Available to spend</p>
@@ -105,24 +142,18 @@ onBeforeUnmount(() => chart?.destroy())
                 of ${{ summary.period.budgetAmount.toFixed(2) }} remains this week.
               </p>
               <div
-                class="progress mt-4"
-                role="progressbar"
-                aria-label="Budget used"
-                :aria-valuenow="usedPercent"
-                aria-valuemin="0"
-                aria-valuemax="100"
-              >
+                class="progress mt-4">
                 <div class="progress-bar" :style="{ width: `${usedPercent}%` }"></div>
               </div>
               <div class="d-flex justify-content-between mt-2 small fw-semibold">
                 <span>{{ usedPercent.toFixed(0) }}% used</span
                 ><span>${{ summary.actualSpent.toFixed(2) }} spent</span>
               </div>
-              <div class="budget-tip mt-4">
-                <strong>Small win</strong>
+              <!--  Tip box -->
+              <div v-if="budgetMessage" class="budget-tip mt-4" :class="budgetMessage.type">
+                <strong>{{ budgetMessage.title }}</strong>
                 <p class="mb-0">
-                  Your recorded purchases are below this week's limit. Check the list before buying
-                  extras.
+                  {{ budgetMessage.text }}
                 </p>
               </div>
             </section>
@@ -130,10 +161,7 @@ onBeforeUnmount(() => chart?.destroy())
         </div>
         <section class="surface-card p-4 p-md-5 mt-4">
           <h2 class="budget-heading">Weekly spending by category</h2>
-          <p class="text-secondary small mb-3">
-            This shows how the estimated weekly food spending is divided across different
-            categories.
-          </p>
+
           <div v-for="category in summary.categories" :key="category.label" class="breakdown-row">
             <span>{{ category.label }}</span>
             <div>
@@ -157,6 +185,7 @@ onBeforeUnmount(() => chart?.destroy())
   font-weight: 800;
   letter-spacing: -0.03em;
 }
+/* 给 canvas 一个固定高度的容器 */
 .chart-wrap {
   position: relative;
   height: 19rem;
@@ -165,7 +194,7 @@ onBeforeUnmount(() => chart?.destroy())
   color: var(--um-green);
   font-size: 3rem;
   font-weight: 800;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.06em;  /* 字距收紧 */
 }
 .progress {
   height: 0.65rem;
@@ -176,19 +205,31 @@ onBeforeUnmount(() => chart?.destroy())
   border-radius: 99px;
   background: var(--um-coral);
 }
+
+/*  Base tip box */
 .budget-tip {
   padding: 1rem;
   border-radius: 0.8rem;
-  color: #51634e;
-  background: #f1f6ef;
   font-size: 0.9rem;
 }
+
+/*  Green success (on track) */
+.budget-tip.success {
+  color: #51634e;
+  background: #f1f6ef;
+}
+
+/*  Orange warning (close or exceeded) */
+.budget-tip.warning {
+  color: #8a4b08;
+  background: #fdf1e6;
+}
+
 .budget-tip strong {
-  color: var(--um-green);
+  display: block;
+  margin-bottom: 0.35rem;
 }
-.budget-tip p {
-  margin-top: 0.35rem;
-}
+/* 底部的 "Protein $15.00" 这种行 */
 .breakdown-row {
   display: flex;
   justify-content: space-between;
@@ -209,6 +250,7 @@ onBeforeUnmount(() => chart?.destroy())
   color: var(--um-green);
   text-align: right;
 }
+/* ===== Category progress track ===== */
 .breakdown-track {
   width: min(20vw, 10rem);
   height: 0.45rem;
@@ -219,7 +261,7 @@ onBeforeUnmount(() => chart?.destroy())
 .breakdown-track i {
   display: block;
   height: 100%;
-  border-radius: inherit;
+  border-radius: inherit; /* Inherit parent's radius */
   background: var(--um-green);
 }
 @media (max-width: 575.98px) {

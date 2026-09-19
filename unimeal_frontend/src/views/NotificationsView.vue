@@ -4,6 +4,7 @@ import { api } from '../services/api'
 
 const notifications = ref([])
 const loading = ref(true)
+// ---------- Computed: unread count ----------
 const unreadCount = computed(
   () => notifications.value.filter((notification) => !notification.read).length,
 )
@@ -16,12 +17,14 @@ onMounted(async () => {
   }
 })
 
+// ----------  mark one as read ----------
 async function markAsRead(notification) {
-  if (notification.read) return
+  if (notification.read) return  // 已经读过了，不做任何事
   const updated = await api.markNotificationRead(notification.id)
   if (updated) notification.read = updated.read
 }
 
+// --------- mark all as read -----
 async function markAllAsRead() {
   notifications.value = await api.markAllNotificationsRead()
 }
@@ -38,6 +41,7 @@ async function markAllAsRead() {
             Keep track of planned meals, shopping reminders and saved recipe updates.
           </p>
         </div>
+        <!-- Button disabled when no unread notifications -->
         <button
           class="btn btn-outline-primary"
           type="button"
@@ -53,6 +57,7 @@ async function markAllAsRead() {
         <h2 class="h5 fw-bold">You are all caught up.</h2>
         <p class="mb-0">New meal-plan and shopping reminders will appear here.</p>
       </div>
+      <!-- Notification list -->
       <div v-else class="surface-card overflow-hidden">
         <article
           v-for="notification in notifications"
@@ -60,17 +65,21 @@ async function markAllAsRead() {
           class="notification-item"
           :class="{ unread: !notification.read }"
         >
+         <!-- "unread" class adds green left border + light green background -->
           <div class="d-flex flex-wrap justify-content-between gap-2">
             <div>
               <div class="d-flex align-items-center gap-2 mb-1">
                 <span class="notification-type">{{ notification.type }}</span>
+                <!--  "New" badge (only if unread) -->
                 <span v-if="!notification.read" class="badge text-bg-primary">New</span>
               </div>
+              <!-- Title -->
               <h2 class="h5 mb-1">{{ notification.title }}</h2>
               <p class="mb-0 text-secondary">{{ notification.message }}</p>
             </div>
             <small class="text-secondary">{{ notification.createdAt }}</small>
           </div>
+          <!-- "Mark as read" only shows when unread -->
           <button
             v-if="!notification.read"
             class="btn btn-sm btn-outline-secondary mt-3"
@@ -89,12 +98,12 @@ async function markAllAsRead() {
 .notification-page {
   max-width: 60rem;
 }
-
+/* 每一条通知 */
 .notification-item {
   padding: 1.25rem;
   border-bottom: 1px solid var(--um-line);
 }
-
+/* 最后一条去掉下边框 */
 .notification-item:last-child {
   border-bottom: 0;
 }

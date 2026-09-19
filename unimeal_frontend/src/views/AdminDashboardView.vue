@@ -2,17 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../services/api'
-const overview = ref(null)
-const updating = ref(null)
+const overview = ref(null)   // 整个仪表盘数据
+const updating = ref(null)  // 正在操作的举报 ID（用于禁用按钮）
 onMounted(async () => {
   overview.value = await api.getAdminOverview()
 })
 async function updateStatus(reportId, status) {
-  updating.value = reportId
+  updating.value = reportId   // 标记"正在处理这条"
   try {
     overview.value = await api.updateReportStatus(reportId, status)
   } finally {
-    updating.value = null
+    updating.value = null   // 解除标记
   }
 }
 </script>
@@ -55,6 +55,7 @@ async function updateStatus(reportId, status) {
             </div>
             <span class="text-secondary small">{{ overview.reports.length }} reports</span>
           </div>
+          <!-- table-responsive：窄屏时横向滚动 -->
           <div class="table-responsive">
             <table class="table align-middle mb-0">
               <thead>
@@ -68,6 +69,7 @@ async function updateStatus(reportId, status) {
               </thead>
               <tbody>
                 <tr v-for="report in overview.reports" :key="report.id">
+                  <!-- 目标：标题 + 类型·时间  -->
                   <td>
                     <strong>{{ report.targetTitle }}</strong
                     ><small>{{ report.targetType }} · {{ report.createdAt }}</small>
@@ -81,6 +83,7 @@ async function updateStatus(reportId, status) {
                       >{{ report.status }}</span
                     >
                   </td>
+                  <!-- 操作按钮组 -->
                   <td class="text-end">
                     <div class="btn-group btn-group-sm">
                       <button
@@ -115,11 +118,13 @@ async function updateStatus(reportId, status) {
 </template>
 
 <style scoped>
+/* 卡片顶部的小字 */
 .stat-label {
   color: var(--um-muted);
   font-size: 0.86rem;
   font-weight: 700;
 }
+/* 统计卡片的大数字 */
 .stat-value {
   display: block;
   margin: 0.5rem 0;
@@ -127,11 +132,13 @@ async function updateStatus(reportId, status) {
   font-size: 2.35rem;
   letter-spacing: -0.05em;
 }
+/* 卡片底部的 "+3 this week" 这些小字 */
 .stat-note {
   color: var(--um-coral);
   font-size: 0.78rem;
   font-weight: 750;
 }
+/* "Reported content" 这个标题 */
 .admin-heading {
   color: var(--um-ink);
   font-size: 1.45rem;
@@ -142,12 +149,13 @@ async function updateStatus(reportId, status) {
   font-size: 0.75rem;
   text-transform: uppercase;
 }
+/* 表头（TARGET、REPORTER、REASON... */
 .table td {
   padding: 1rem 0.5rem;
   color: var(--um-ink);
 }
 .table small {
-  display: block;
+  display: block;  /* 强制换行 */
   color: var(--um-muted);
   margin-top: 0.2rem;
 }

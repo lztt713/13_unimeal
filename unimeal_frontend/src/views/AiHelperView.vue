@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import RecipeCard from '../components/RecipeCard.vue'
 import { api } from '../services/api'
 
-const query = ref('')
+const query = ref('')  // 用户输入的查询文字
 const result = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -69,7 +69,9 @@ function useExample(example) {
       <div v-else-if="loading" class="py-5 text-center text-secondary">
         Preparing a student-friendly suggestion...
       </div>
+      <!-- 有结果 -->
       <section v-else-if="result" class="ai-content mt-5">
+        <!-- 推荐卡片 + 注意事项 -->
         <article class="surface-card p-4 p-md-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
             <div>
@@ -106,6 +108,7 @@ function useExample(example) {
 .ai-intro {
   max-width: 46rem;
 }
+/* 搜索框容器 */
 .ai-search {
   max-width: 50rem;
   margin-inline: auto;
@@ -113,6 +116,7 @@ function useExample(example) {
 .ai-search .form-control {
   min-width: 0;
 }
+/* 3 个示例胶囊。悬停时背景变浅绿 */
 .example-chip {
   border: 1px solid #d4dfd0;
   border-radius: 99px;
