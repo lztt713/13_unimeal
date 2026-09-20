@@ -47,6 +47,7 @@ from app.services.ingredient_service import (
     merge_ingredients,
 )
 from app.services.recipe_service import get_recipe_ingredients, search_recipes
+from app.routers.notifications import notify_recipe_updated
 
 router = APIRouter(prefix="/api", tags=["recipes"])
 
@@ -406,6 +407,9 @@ def update_recipe(
 
     db.commit()
     db.refresh(recipe)
+    # ZZH: 菜谱被更新后，通知所有收藏了它的学生（recipe_update 类型）。
+    # Notify students who saved this recipe whenever the contributor edits it.
+    notify_recipe_updated(db, recipe)
     return _recipe_to_response(recipe, db, include_comments=True)
 
 
