@@ -537,7 +537,8 @@ def budget_summary_for_user(db: Session, user_id: int, reference_date: date | No
     if period is None:
         start_date = _week_start(reference_date)
         end_date = start_date + timedelta(days=6)
-        budget_amount = 0.0
+        user = db.get(User, user_id)
+        budget_amount = float(user.weekly_budget or 0) if user is not None else 0.0
     else:
         start_date = period.period_start
         end_date = period.period_end

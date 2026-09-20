@@ -338,6 +338,12 @@ class PlanningFlowTest(unittest.TestCase):
         self.assertEqual(summary["period"]["budget_amount"], 0)
         self.assertGreater(summary["actual_spent"], 0)
 
+        self.student.weekly_budget = Decimal("25.00")
+        self.db.commit()
+        summary = budget_summary_for_user(self.db, self.student_id)
+        self.assertEqual(summary["period"]["budget_amount"], 25.0)
+        self.assertEqual(get_dashboard(self.db, self.student).weekly_budget, 25.0)
+
     def test_receipt_amount_updates_budget_and_unpurchase_clears_it(self):
         save_meal_plan_entry(
             MealPlanEntryWrite(

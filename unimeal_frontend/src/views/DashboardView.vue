@@ -15,7 +15,9 @@ const selectedRecipeId = ref('')
 const budgetPercent = computed(() =>
   data.value?.weeklyBudget > 0 ? Math.min(100, (data.value.spent / data.value.weeklyBudget) * 100) : 0,
 )
-const remaining = computed(() => (data.value ? data.value.weeklyBudget - data.value.spent : 0))
+const hasBudget = computed(() => data.value?.weeklyBudget > 0)
+const remaining = computed(() => (hasBudget.value ? data.value.weeklyBudget - data.value.spent : 0))
+const overBudget = computed(() => hasBudget.value && remaining.value < 0)
 // 对应页面：底部"Plan and manage"那 6 张卡片
 const quickLinks = [
   {
@@ -169,7 +171,10 @@ async function replaceDinner() {
               <div class="d-flex justify-content-between align-items-start mb-4">
                 <div>
                   <p class="eyebrow">Weekly budget</p>
-                  <h2 class="mb-0">${{ remaining.toFixed(2) }} <span>left</span></h2>
+                  <h2 v-if="hasBudget" class="mb-0">
+                    ${{ Math.abs(remaining).toFixed(2) }} <span>{{ overBudget ? 'over' : 'left' }}</span>
+                  </h2>
+                  <h2 v-else class="mb-0">No budget set</h2>
                 </div>
                 <span class="budget-icon">$</span>
               </div>
@@ -177,10 +182,13 @@ async function replaceDinner() {
                 <span>${{ data.spent.toFixed(2) }} spent</span
                 ><span>${{ data.weeklyBudget.toFixed(2) }} budget</span>
               </div>
-              <div class="progress mb-4">
+              <div v-if="hasBudget" class="progress mb-4">
                 <div class="progress-bar" :style="{ width: `${budgetPercent}%` }"></div>
               </div>
-              <p v-if="data.weeklyBudget > 0" class="budget-note mb-0">
+              <p v-if="overBudget" class="budget-note mb-0">
+                You have spent ${{ Math.abs(remaining).toFixed(2) }} over your weekly food budget.
+              </p>
+              <p v-else-if="hasBudget" class="budget-note mb-0">
                 You have {{ Math.round(100 - budgetPercent) }}% of your weekly food budget
                 remaining.
               </p>

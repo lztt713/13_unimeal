@@ -9,13 +9,15 @@ const summary = ref(null)
 const chartCanvas = ref(null)
 let chart //Chart.js 实例（不需要响应式，所以用 let）
 
+const hasBudget = computed(() => summary.value?.period.budgetAmount > 0)
 // ---------- 剩余金额 remaining ----------
 const remaining = computed(() =>
-  summary.value ? summary.value.period.budgetAmount - summary.value.actualSpent : 0,
+  hasBudget.value ? summary.value.period.budgetAmount - summary.value.actualSpent : 0,
 )
+const overBudget = computed(() => hasBudget.value && remaining.value < 0)
 // ---------- 已用百分比  used percentage -----
 const usedPercent = computed(() =>
-  summary.value?.period.budgetAmount > 0
+  hasBudget.value
     ? Math.min(100, (summary.value.actualSpent / summary.value.period.budgetAmount) * 100)
     : 0,
 )
@@ -24,12 +26,28 @@ const usedPercent = computed(() =>
 const budgetMessage = computed(() => {
   if (!summary.value) return null
 
+  if (!hasBudget.value) {
+    return {
+      title: 'No budget set',
+      text: 'Your purchases are recorded, but there is no weekly budget to compare them with.',
+      type: 'neutral',
+    }
+  }
+
+  if (overBudget.value) {
+    return {
+      title: 'Budget exceeded',
+      text: `You have spent $${Math.abs(remaining.value).toFixed(2)} over your weekly budget.`,
+      type: 'warning',
+    }
+  }
+
   const percent = usedPercent.value
 
   if (percent >= 100) {
     return {
-      title: 'Budget exceeded',
-      text: 'You have gone over your weekly limit. Consider cheaper options for the rest of the week.',
+      title: 'Budget reached',
+      text: 'You have used your full weekly budget.',
       type: 'warning',
     }
   }
@@ -136,17 +154,22 @@ onBeforeUnmount(() => chart?.destroy())
           <!-- Right (5/12): Remaining budget + progress bar -->
           <div class="col-lg-5">
             <section class="surface-card p-4 p-md-5 h-100">
-              <p class="eyebrow">Available to spend</p>
-              <h2 class="remaining-amount">${{ remaining.toFixed(2) }}</h2>
-              <p class="text-secondary">
-                of ${{ summary.period.budgetAmount.toFixed(2) }} remains this week.
+              <p class="eyebrow">
+                {{ !hasBudget ? 'Weekly spending' : overBudget ? 'Over budget' : 'Available to spend' }}
               </p>
-              <div
-                class="progress mt-4">
+              <h2 v-if="hasBudget" class="remaining-amount" :class="{ 'text-danger': overBudget }">
+                ${{ Math.abs(remaining).toFixed(2) }} {{ overBudget ? 'over' : 'left' }}
+              </h2>
+              <h2 v-else class="remaining-amount">No budget set</h2>
+              <p v-if="hasBudget" class="text-secondary">
+                Weekly budget: ${{ summary.period.budgetAmount.toFixed(2) }}.
+              </p>
+              <RouterLink v-else to="/profile">Set your weekly budget in your profile</RouterLink>
+              <div v-if="hasBudget" class="progress mt-4">
                 <div class="progress-bar" :style="{ width: `${usedPercent}%` }"></div>
               </div>
               <div class="d-flex justify-content-between mt-2 small fw-semibold">
-                <span>{{ usedPercent.toFixed(0) }}% used</span
+                <span v-if="hasBudget">{{ usedPercent.toFixed(0) }}% used</span
                 ><span>${{ summary.actualSpent.toFixed(2) }} spent</span>
               </div>
               <!--  Tip box -->
@@ -223,6 +246,10 @@ onBeforeUnmount(() => chart?.destroy())
 .budget-tip.warning {
   color: #8a4b08;
   background: #fdf1e6;
+}
+.budget-tip.neutral {
+  color: #51634e;
+  background: #f1f3ef;
 }
 
 .budget-tip strong {
