@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import contributor_user, get_current_user, get_current_user_optional
 from app.database import get_db
 from app.models import (
+    Allergy,
     Cuisine,
     DietaryTag,
     Ingredient,
@@ -27,6 +28,7 @@ from app.models import (
     RecipeRating,
     RecipeStep,
     User,
+    ingredient_allergens,
     recipe_dietary_tags,
     saved_recipes,
 )
@@ -200,6 +202,24 @@ def _recipe_comments(db: Session, recipe_id: int) -> list[dict]:
     ]
 
 
+def _recipe_allergens(db: Session, recipe_id: int) -> list[str]:
+    """Return the allergen names linked to a recipe's ingredients.
+
+    菜谱食材 → ingredient_allergens → allergies：根据菜谱用到的食材，
+    查出关联的过敏原名称（去重、按名称排序）。
+    """
+    rows = (
+        db.query(Allergy.allergy_name)
+        .join(ingredient_allergens, ingredient_allergens.c.allergy_id == Allergy.allergy_id)
+        .join(RecipeIngredient, RecipeIngredient.ingredient_id == ingredient_allergens.c.ingredient_id)
+        .filter(RecipeIngredient.recipe_id == recipe_id)
+        .distinct()
+        .order_by(Allergy.allergy_name.asc())
+        .all()
+    )
+    return [row[0] for row in rows]
+
+
 def _recipe_to_response(recipe: Recipe, db: Session, include_comments: bool = False) -> dict:
     """Build a Vue-friendly response from normalized recipe tables."""
     ingredient_details = get_recipe_ingredients(db, int(recipe.recipe_id))
@@ -222,6 +242,7 @@ def _recipe_to_response(recipe: Recipe, db: Session, include_comments: bool = Fa
         "ingredient_details": ingredient_details,
         "steps": [step.instruction for step in recipe.steps],
         "comments": _recipe_comments(db, int(recipe.recipe_id)) if include_comments else [],
+        "allergen_tags": _recipe_allergens(db, int(recipe.recipe_id)),
     }
 
 
