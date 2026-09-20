@@ -11,7 +11,7 @@ export const http = axios.create({
   timeout: 15000,
   withCredentials: true,
 })
-
+// 响应拦截器：统一处理错误
 http.interceptors.response.use(
   (response) => response,
   (error) => {
