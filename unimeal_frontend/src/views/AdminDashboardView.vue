@@ -49,9 +49,6 @@ async function updateStatus(reportId, status) {
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
             <div>
               <h2 class="admin-heading">Reported content</h2>
-              <p class="text-secondary mb-0">
-                Reports must target either one recipe or one comment.
-              </p>
             </div>
             <span class="text-secondary small">{{ overview.reports.length }} reports</span>
           </div>
