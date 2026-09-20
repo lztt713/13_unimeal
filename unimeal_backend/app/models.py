@@ -70,6 +70,26 @@ user_allergies = Table(
 )
 
 
+# ZZH: 食材 ↔ 过敏原关联表（对应 master_schema 的 ingredient_allergens）。
+# Ingredient-to-allergen junction table, e.g. Milk -> Dairy.
+ingredient_allergens = Table(
+    "ingredient_allergens",
+    Base.metadata,
+    Column(
+        "ingredient_id",
+        BigInteger,
+        ForeignKey("ingredients.ingredient_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "allergy_id",
+        SmallInteger,
+        ForeignKey("allergies.allergy_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Role(Base):
     """Application role such as student, contributor, or administrator."""
 

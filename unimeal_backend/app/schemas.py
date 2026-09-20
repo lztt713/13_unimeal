@@ -118,6 +118,7 @@ class RecipeResponse(RecipeBase):
     review_count: int = Field(default=0, alias="reviewCount")
     status: str = "Draft"
     comments: list[RecipeCommentResponse] = Field(default_factory=list)
+    allergen_tags: list[str] = Field(default_factory=list, alias="allergenTags")
 
 
 class StudentResponse(BaseModel):

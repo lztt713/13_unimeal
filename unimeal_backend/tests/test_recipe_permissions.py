@@ -5,15 +5,22 @@ import unittest
 from fastapi import HTTPException
 
 from app.models import (
+    Allergy,
     Cuisine,
+    Ingredient,
+    IngredientCategory,
+    MeasurementUnit,
     Notification,
     Recipe,
     RecipeComment,
+    RecipeIngredient,
     RecipeRating,
     Role,
     User,
+    ingredient_allergens,
 )
 from app.routers.recipes import (
+    _recipe_allergens,
     _recipe_to_response,
     add_recipe_comment,
     add_recipe_rating,
@@ -210,6 +217,42 @@ class RecipePermissionTest(MySQLTestCase):
             .all()
         )
         self.assertEqual(notifications, [])
+
+    def test_recipe_allergen_tags_from_ingredients(self):
+        # Build the chain: recipe_ingredients -> ingredient_allergens -> allergies.
+        category = IngredientCategory(category_name="Dairy")
+        unit = MeasurementUnit(unit_name="millilitre", unit_symbol="ml", unit_type="volume")
+        allergy = Allergy(allergy_name="Dairy")
+        self.db.add_all([category, unit, allergy])
+        self.db.flush()
+
+        milk = Ingredient(
+            ingredient_category_id=category.ingredient_category_id,
+            ingredient_name="Milk",
+            default_measurement_unit_id=unit.measurement_unit_id,
+            estimated_unit_cost=0.002,
+        )
+        self.db.add(milk)
+        self.db.flush()
+
+        self.db.execute(
+            ingredient_allergens.insert().values(
+                ingredient_id=milk.ingredient_id, allergy_id=allergy.allergy_id
+            )
+        )
+        self.db.add(
+            RecipeIngredient(
+                recipe_id=self.published.recipe_id,
+                ingredient_id=milk.ingredient_id,
+                measurement_unit_id=unit.measurement_unit_id,
+                quantity=100,
+                sort_order=1,
+            )
+        )
+        self.db.commit()
+
+        self.assertEqual(_recipe_allergens(self.db, self.published.recipe_id), ["Dairy"])
+        self.assertEqual(_recipe_to_response(self.published, self.db)["allergen_tags"], ["Dairy"])
 
 
 if __name__ == "__main__":
