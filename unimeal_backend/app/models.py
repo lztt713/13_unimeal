@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    text,
 )
 from sqlalchemy.orm import relationship
 
@@ -95,8 +96,8 @@ class User(Base):
     favourite_cuisines_note = Column(String(255))
     weekly_budget = Column(Numeric(10, 2), nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     role = relationship("Role", back_populates="users")
     saved_recipes = relationship("Recipe", secondary=saved_recipes, back_populates="saved_by")
@@ -214,8 +215,8 @@ class Recipe(Base):
     difficulty = Column(String(20), nullable=False, default="easy")
     estimated_cost = Column(Numeric(10, 2), nullable=False, default=0)
     status = Column(String(20), nullable=False, default="draft")
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     author = relationship("User")
     cuisine = relationship("Cuisine", back_populates="recipes")
@@ -276,8 +277,8 @@ class RecipeRating(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
     recipe_id = Column(BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"), primary_key=True)
     rating = Column(SmallInteger, nullable=False)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     user = relationship("User", back_populates="ratings")
     recipe = relationship("Recipe", back_populates="ratings")
@@ -306,8 +307,8 @@ class MealPlan(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     week_start_date = Column(Date, nullable=False)
     plan_name = Column(String(100), nullable=False, default="Weekly meal plan")
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     user = relationship("User", back_populates="meal_plans")
     entries = relationship("MealPlanEntry", back_populates="meal_plan", cascade="all, delete-orphan")
@@ -341,8 +342,8 @@ class ShoppingList(Base):
     meal_plan_id = Column(BigInteger, ForeignKey("meal_plans.meal_plan_id", ondelete="SET NULL"))
     list_name = Column(String(100), nullable=False, default="Shopping list")
     status = Column(String(20), nullable=False, default="active")
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     user = relationship("User", back_populates="shopping_lists")
     meal_plan = relationship("MealPlan", back_populates="shopping_lists")
@@ -396,8 +397,8 @@ class RecipeComment(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     comment_text = Column(Text, nullable=False)
     is_hidden = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     recipe = relationship("Recipe", back_populates="comments")
     author = relationship("User", back_populates="comments")
@@ -419,7 +420,7 @@ class Notification(Base):
     dedupe_key = Column(String(255))
     scheduled_for = Column(DateTime)
     read_at = Column(DateTime)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     user = relationship("User", back_populates="notifications")
 
@@ -440,7 +441,7 @@ class ContentReport(Base):
     status = Column(String(20), nullable=False, default="open")
     reviewed_by_user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="SET NULL"))
     reviewed_at = Column(DateTime)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     reporter = relationship("User", foreign_keys=[reporter_user_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by_user_id])
