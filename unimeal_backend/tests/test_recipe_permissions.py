@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from app.models import (
     Cuisine,
+    Notification,
     Recipe,
     RecipeComment,
     RecipeRating,
@@ -183,6 +184,32 @@ class RecipePermissionTest(MySQLTestCase):
         self.db.commit()
         response = _recipe_to_response(self.published, self.db, include_comments=True)
         self.assertEqual(response["comments"], [])
+
+    def test_recipe_update_notifies_students_who_saved_it(self):
+        # A student saves the recipe, then the contributor edits it.
+        toggle_saved_recipe(self.published.recipe_id, self.db, self.student)
+        update_recipe(self.published.recipe_id, RecipeUpdate(title="Renamed"), self.db, self.ben)
+
+        notifications = (
+            self.db.query(Notification)
+            .filter(Notification.user_id == self.student.user_id)
+            .all()
+        )
+        self.assertTrue(
+            any(n.notification_type == "recipe_update" for n in notifications),
+            "expected a recipe_update notification for the saver",
+        )
+        self.assertTrue(any(n.title == "Saved recipe updated" for n in notifications))
+
+    def test_recipe_update_skips_users_who_did_not_save(self):
+        # Eve (a contributor who did not save the recipe) gets no notification.
+        update_recipe(self.published.recipe_id, RecipeUpdate(title="Renamed again"), self.db, self.ben)
+        notifications = (
+            self.db.query(Notification)
+            .filter(Notification.user_id == self.eve.user_id)
+            .all()
+        )
+        self.assertEqual(notifications, [])
 
 
 if __name__ == "__main__":

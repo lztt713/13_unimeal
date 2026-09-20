@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Notification, User
+from app.models import Notification, User, saved_recipes
 from app.routers.planning import planning_reminder_candidates
 from app.schemas import NotificationResponse
 
@@ -92,6 +92,34 @@ def _list(db: Session, user_id: int) -> list[dict]:
 def list_notifications(db: Session, user: User) -> list[dict]:
     sync_notifications(db, user.user_id)
     return _list(db, user.user_id)
+
+
+def notify_recipe_updated(db: Session, recipe) -> None:
+    """Notify every user who saved a recipe when its contributor edits it.
+
+    ZZH: 贡献者修改菜谱后，通知所有收藏了该菜谱的学生（recipe_update 类型）。
+    用 recipe.updated_at 作为去重 key 的一部分，同一次更新只通知一次，
+    下次更新（updated_at 变了）会再产生新通知。
+    """
+    savers = (
+        db.query(User)
+        .join(saved_recipes, saved_recipes.c.user_id == User.user_id)
+        .filter(saved_recipes.c.recipe_id == recipe.recipe_id)
+        .all()
+    )
+    for saver in savers:
+        updated_at = recipe.updated_at or datetime.now()
+        db.add(
+            Notification(
+                user_id=saver.user_id,
+                notification_type="recipe_update",
+                title="Saved recipe updated",
+                message=f"{recipe.title} has updated ingredients and steps.",
+                dedupe_key=f"recipe_update:{saver.user_id}:{recipe.recipe_id}:{updated_at}",
+                created_at=datetime.now(),
+            )
+        )
+    db.commit()
 
 
 def mark_notification_read(db: Session, user: User, notification_id: int) -> dict:
