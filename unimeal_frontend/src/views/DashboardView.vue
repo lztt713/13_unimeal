@@ -101,7 +101,7 @@ async function replaceDinner() {
         <div>
           <p class="eyebrow">Your student kitchen</p>
           <h1 class="page-title">
-            Good evening<span v-if="currentUser">, {{ currentUser.displayName }}</span
+            Welcome back<span v-if="currentUser">, {{ currentUser.displayName }}</span
             >.
           </h1>
           <p class="page-subtitle">A calm plan for delicious meals and a happier wallet.</p>
