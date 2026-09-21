@@ -6,6 +6,7 @@ const plan = ref({ entries: [] })
 const recipes = ref([])
 const loading = ref(true)
 const loadError = ref(false)
+const selectedWeekStart = ref('')
 const activeSlot = ref(null)   // 当前打开的格子（day + mealType + entry）
 const selectedRecipeId = ref('')
 const plannedServings = ref(1)  // 这一餐做几人份，默认 1
@@ -32,9 +33,30 @@ const selectedRecipe = computed(() =>
   recipes.value.find((recipe) => recipe.id === Number(selectedRecipeId.value)),
 )
 
+async function loadMealPlan(weekStart) {
+  plan.value = await api.getMealPlan(weekStart)
+  selectedWeekStart.value = plan.value.weekStartDate
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+async function showThisWeek() {
+  await loadMealPlan()
+}
+
+async function showNextWeek() {
+  const [year, month, day] = selectedWeekStart.value.split('-').map(Number)
+  await loadMealPlan(formatDateKey(new Date(year, month - 1, day + 7)))
+}
+
 onMounted(async () => {
   try {
-    ;[plan.value, recipes.value] = await Promise.all([api.getMealPlan(), api.getRecipes()])
+    const [mealPlan, recipeList] = await Promise.all([api.getMealPlan(), api.getRecipes()])
+    plan.value = mealPlan
+    selectedWeekStart.value = mealPlan.weekStartDate
+    recipes.value = recipeList
   } catch {
     loadError.value = true
   } finally {
@@ -89,9 +111,15 @@ async function removeSlot() {
           <h1 class="page-title">Your week, at a glance.</h1>
           <p class="page-subtitle">Schedule a recipe for each meal slot and update it anytime.</p>
         </div>
-        <RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/recipes"
-          >Browse recipes</RouterLink
-        >
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-primary rounded-pill px-3" type="button" @click="showThisWeek">
+            This week
+          </button>
+          <button class="btn btn-outline-primary rounded-pill px-3" type="button" @click="showNextWeek">
+            Next week
+          </button>
+          <RouterLink class="btn btn-primary rounded-pill px-4" to="/recipes">Browse recipes</RouterLink>
+        </div>
       </div>
       <div v-if="loading" class="py-5 text-center text-secondary">Loading your meal plan...</div>
       <div v-else-if="loadError" class="empty-state p-5">

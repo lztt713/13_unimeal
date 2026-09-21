@@ -50,14 +50,16 @@ const allergyWarnings = computed(() => {
 })
 
 onMounted(async () => {
-  const [recipeData, savedIds, currentUser] = await Promise.all([
+  const [recipeData, currentUser] = await Promise.all([
     api.getRecipe(props.id),
-    api.getSavedRecipeIds(),
     api.getCurrentUser(),
   ])
   recipe.value = recipeData
-  saved.value = savedIds.includes(Number(props.id))  // 判断这道菜是否已收藏
   user.value = currentUser
+  if (currentUser?.role === 'student') {
+    const savedIds = await api.getSavedRecipeIds()
+    saved.value = savedIds.includes(Number(props.id))
+  }
   loading.value = false
 })
 
@@ -197,7 +199,7 @@ async function submitComment() {
                   <button class="btn btn-outline-secondary btn-sm" @click="openReportRecipe">
                     Report recipe
                   </button>
-                  <button class="btn btn-outline-primary rounded-pill btn-sm" @click="toggleSaved">
+                  <button v-if="user?.role === 'student'" class="btn btn-outline-primary rounded-pill btn-sm" @click="toggleSaved">
                     {{ saved ? 'Saved to favourites' : 'Save recipe' }}
                   </button>
                 </div>
@@ -209,6 +211,12 @@ async function submitComment() {
         <!-- Allergy warning: only shows if user's and recipe's allergens intersect -->
         <div v-if="allergyWarnings.length" class="alert alert-warning mt-4 mb-0">
           <strong>Allergy warning:</strong> this recipe contains {{ allergyWarnings.join(', ') }}.
+        </div>
+        <div v-if="recipe.requiredEquipment?.length" class="surface-card p-3 mt-4">
+          <strong class="me-2">Required equipment:</strong>
+          <span v-for="equipment in recipe.requiredEquipment" :key="equipment.id" class="detail-tag me-2">
+            {{ equipment.name }}
+          </span>
         </div>
 
         <div class="row g-4 mt-1">

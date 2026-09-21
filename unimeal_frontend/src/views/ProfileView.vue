@@ -5,6 +5,7 @@ import { api } from '../services/api'
 const profile = ref(null)
 const saved = ref(false)
 const allergiesText = ref('')
+const allergyOptions = ref([])
 const allRecipes = ref([])   // 所有食谱（用于动态提取菜系）
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 // 菜系：从食谱数据动态提取
@@ -13,18 +14,23 @@ const cuisineOptions = computed(() =>
 )
 onMounted(async () => {
   // 并行请求用户资料 + 所有食谱
-  const [userData, recipesData] = await Promise.all([
+  const [userData, recipesData, availableAllergies] = await Promise.all([
     api.getCurrentUser(),
     api.getRecipes(),
+    api.getAllergies().catch(() => []),
   ])
   profile.value = userData
   allRecipes.value = recipesData
+  allergyOptions.value = availableAllergies
   allergiesText.value = (userData.allergies || []).join(', ')
 })
 
 // ----------save profile (students only)
 async function saveProfile() {
-  profile.value = await api.updateProfile({ ...profile.value, allergies: allergiesText.value.split(',').map((value) => value.trim()).filter(Boolean) })
+  const allergies = allergyOptions.value.length
+    ? profile.value.allergies
+    : allergiesText.value.split(',').map((value) => value.trim()).filter(Boolean)
+  profile.value = await api.updateProfile({ ...profile.value, allergies })
   // Show "saved" toast, auto-hide after 2.5s
   saved.value = true
   setTimeout(() => {
@@ -87,8 +93,17 @@ async function saveProfile() {
                     <option>No kitchen</option>
                   </select>
                 </div>
-                 <!-- Allergies input -->
-                <div class="col-md-6">
+                <fieldset v-if="allergyOptions.length" class="col-md-6">
+                  <legend class="form-label mb-2">Allergies</legend>
+                  <div class="d-flex flex-wrap gap-2">
+                    <label v-for="allergy in allergyOptions" :key="allergy.id" class="choice-pill">
+                      <input v-model="profile.allergies" type="checkbox" :value="allergy.name" />
+                      {{ allergy.name }}
+                    </label>
+                  </div>
+                </fieldset>
+                <!-- Keep existing profiles editable until the allergy-options API is deployed. -->
+                <div v-else class="col-md-6">
                   <label class="form-label">Allergies</label
                   ><input
                     v-model="allergiesText"

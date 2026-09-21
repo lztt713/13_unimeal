@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import RecipeCard from '../components/RecipeCard.vue'
 import { api } from '../services/api'
 
@@ -7,11 +7,24 @@ const query = ref('')  // 用户输入的查询文字
 const result = ref(null)
 const loading = ref(false)
 const error = ref('')
+const profile = ref(null)
 const examples = [
   'Vegetarian meals under $5',
   'Quick dinners with rice',
   'High protein meals under 30 minutes',
 ]
+const savedPreferences = computed(() => [
+  ...(profile.value?.dietaryPreferences || []),
+  ...(profile.value?.favouriteCuisines || []).map((cuisine) => `Likes ${cuisine}`),
+])
+
+onMounted(async () => {
+  try {
+    profile.value = await api.getCurrentUser()
+  } catch {
+    profile.value = null
+  }
+})
 async function ask() {
   if (!query.value.trim()) return
   error.value = ''
@@ -65,6 +78,9 @@ function useExample(example) {
           {{ example }}
         </button>
       </div>
+      <p v-if="savedPreferences.length" class="text-secondary small text-center mt-3 mb-0">
+        Saved preferences: {{ savedPreferences.join(' · ') }}
+      </p>
       <div v-if="error" class="alert alert-danger mx-auto mt-4 ai-content">{{ error }}</div>
       <div v-else-if="loading" class="py-5 text-center text-secondary">
         Preparing a student-friendly suggestion...
