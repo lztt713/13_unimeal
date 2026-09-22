@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { api, apiError } from './services/api'
+import { unreadNotificationCount, updateUnreadNotificationCount } from './services/notificationState'
 
 const navOpen = ref(false)
 const route = useRoute()
@@ -22,7 +23,17 @@ const logoRoute = computed(() => {
   return '/admin'                                // 管理员
 })
 async function refreshUser() {
-  try { user.value = await api.getCurrentUser() } catch { user.value = null }
+  try {
+    user.value = await api.getCurrentUser()
+    if (user.value?.role === 'student') {
+      updateUnreadNotificationCount(await api.getNotifications())
+    } else {
+      unreadNotificationCount.value = 0
+    }
+  } catch {
+    user.value = null
+    unreadNotificationCount.value = 0
+  }
 }
 onMounted(refreshUser)
 watch(() => route.fullPath, () => { apiError.value = ''; refreshUser() })
@@ -61,7 +72,13 @@ async function signOut() {
          <!-- 主导航链接 -->
         <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
           <li v-for="item in navItems" :key="item.to" class="nav-item">
-            <RouterLink class="nav-link px-3" :to="item.to" @click="closeNav">{{ item.label }}</RouterLink>
+            <RouterLink class="nav-link px-3" :to="item.to" @click="closeNav">
+              {{ item.label }}
+              <span
+                v-if="item.to === '/notifications' && unreadNotificationCount"
+                class="badge rounded-pill text-bg-danger ms-1"
+              >{{ unreadNotificationCount }}</span>
+            </RouterLink>
           </li>
         </ul>
           <!-- 已登录：头像 + Sign out -->

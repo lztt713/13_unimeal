@@ -6,7 +6,9 @@ import { api } from '../services/api'
 const router = useRouter()
 const route = useRoute()
 const ingredients = ref([])
+const equipmentOptions = ref([])
 const submitted = ref(false)
+const submitting = ref(false)
 const errors = ref([])
 // ---------- Image upload state ----------
 const imageInput = ref(null)
@@ -25,6 +27,7 @@ const form = ref({
   servings: 1,
   estimatedCost: 0,
   dietaryTags: [],
+  requiredEquipmentIds: [],
   ingredients: [{ ingredientId: '', quantity: '', unit: 'g' }],
   steps: [''],
 })
@@ -38,8 +41,13 @@ const previewUrl = computed(
 )
 
 onMounted(async () => {
-  // 先拿所有食材（下拉框用）
-  ingredients.value = await api.getIngredients()
+  // Equipment options appear automatically once the database endpoint is available.
+  const [ingredientData, equipmentData] = await Promise.all([
+    api.getIngredients(),
+    api.getEquipment().catch(() => []),
+  ])
+  ingredients.value = ingredientData
+  equipmentOptions.value = equipmentData
    // 如果不是编辑模式，直接结束
   if (!route.query.edit) return
   // 编辑模式：拿要编辑的食谱数据
@@ -56,6 +64,7 @@ onMounted(async () => {
     servings: recipe.servings,
     estimatedCost: recipe.estimatedCost,
     dietaryTags: recipe.dietaryTags,
+    requiredEquipmentIds: (recipe.requiredEquipment || []).map((equipment) => equipment.id),
     ingredients: recipe.ingredientDetails.map((item) => ({
       ingredientId: item.ingredientId,
       quantity: item.quantity,
@@ -148,12 +157,23 @@ async function submitRecipe() {
     // 步骤文本去空格
     steps: form.value.steps.map((step) => step.trim()),
   }
-   // -------根据模式调不同接口 ----------
-  const recipe = route.query.edit
-    ? await api.updateRecipe(route.query.edit, payload) // 编辑
-    : await api.createRecipe(payload)  // 新建
-  submitted.value = true
-  setTimeout(() => router.push(`/recipes/${recipe.id}`), 700)
+  submitting.value = true
+  try {
+    // A selected local file is uploaded first. The backend returns the URL saved with the recipe.
+    if (selectedImage.value) {
+      const upload = await api.uploadRecipeImage(selectedImage.value)
+      payload.imageUrl = upload.imageUrl
+    }
+    const recipe = route.query.edit
+      ? await api.updateRecipe(route.query.edit, payload)
+      : await api.createRecipe(payload)
+    submitted.value = true
+    setTimeout(() => router.push(`/recipes/${recipe.id}`), 700)
+  } catch (error) {
+    errors.value = [error.message]
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -242,6 +262,15 @@ async function submitRecipe() {
                   ><input v-model="form.dietaryTags" type="checkbox" :value="tag" />
                   {{ tag }}</label
                 >
+              </div>
+            </fieldset>
+            <fieldset v-if="equipmentOptions.length" class="mt-4">
+              <legend class="form-label mb-2">Required equipment</legend>
+              <div class="d-flex flex-wrap gap-2">
+                <label v-for="equipment in equipmentOptions" :key="equipment.id" class="tag-choice">
+                  <input v-model="form.requiredEquipmentIds" type="checkbox" :value="equipment.id" />
+                  {{ equipment.name }}
+                </label>
               </div>
             </fieldset>
           </section>
@@ -375,9 +404,9 @@ async function submitRecipe() {
             <button
               class="btn btn-primary rounded-pill w-100 mt-2"
               type="submit"
-              :disabled="submitted"
+              :disabled="submitted || submitting"
             >
-              {{ submitted ? 'Saved - opening recipe...' : 'Submit recipe' }}
+              {{ submitted ? 'Saved - opening recipe...' : submitting ? 'Saving...' : 'Submit recipe' }}
             </button>
           </section>
         </aside>

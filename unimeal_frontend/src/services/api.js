@@ -21,7 +21,7 @@ http.interceptors.response.use(
       : typeof detail === 'string'
         ? detail
         : 'Could not reach UniMeal. Check that the local server is running.'
-    if (!(error.config?.url === '/auth/me' && error.response?.status === 401)) {
+    if (!error.config?.suppressGlobalError && !(error.config?.url === '/auth/me' && error.response?.status === 401)) {
       apiError.value = error.message
     }
     return Promise.reject(error)
@@ -37,6 +37,14 @@ export const api = {
   getRecipes: () => data(http.get('/recipes')),
   getRecipe: (id) => data(http.get(`/recipes/${id}`)),
   getIngredients: () => data(http.get('/ingredients')),
+  // These two lists are optional until the database endpoints are deployed.
+  getEquipment: () => data(http.get('/equipment', { suppressGlobalError: true })),
+  getAllergies: () => data(http.get('/allergies', { suppressGlobalError: true })),
+  uploadRecipeImage: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return data(http.post('/uploads/recipe-image', formData))
+  },
   createRecipe: (recipe) => data(http.post('/recipes', recipe)),
   updateRecipe: (id, recipe) => data(http.put(`/recipes/${id}`, recipe)),
   getMyRecipes: () => data(http.get('/my-recipes')),
@@ -49,7 +57,8 @@ export const api = {
   addRecipeRating: (id, rating) => data(http.post(`/recipes/${id}/ratings`, { rating })),
   addRecipeComment: (id, text) => data(http.post(`/recipes/${id}/comments`, { text })),
   // ===== 饮食计划 =====
-  getMealPlan: () => data(http.get('/meal-plan')),
+  getMealPlan: (weekStart) =>
+    data(http.get('/meal-plan', { params: weekStart ? { week_start: weekStart } : {} })),
   saveMealPlanEntry: (entry) => data(http.post('/meal-plan/entries', entry)),
   removeMealPlanEntry: (id) => data(http.delete(`/meal-plan/entries/${id}`)),
   // ===== 购物清单 =====
@@ -74,6 +83,7 @@ export const api = {
   getNotifications: () => data(http.get('/notifications')),
   markNotificationRead: (id) => data(http.patch(`/notifications/${id}/read`)),
   markAllNotificationsRead: () => data(http.patch('/notifications/read-all')),
+  clearReadNotifications: () => data(http.delete('/notifications/read')),
   // ===== 管理员 =====
   getAdminOverview: () => data(http.get('/admin/overview')),
   updateReportStatus: (id, status) => data(http.patch(`/admin/reports/${id}`, { status })),

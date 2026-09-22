@@ -27,6 +27,7 @@ async function submit() {
   try {
   // Call register or login API based on the current mode
     const user = isRegister.value ? await api.register(form.value) : await api.signIn(form.value)
+    // 根据角色决定跳转目标
     const defaultRoute =
       user.role === 'administrator'
         ? '/admin'
