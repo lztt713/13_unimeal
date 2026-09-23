@@ -12,6 +12,8 @@ erDiagram
   RECIPES ||--o{ RECIPE_INGREDIENTS : requires
   INGREDIENTS ||--o{ RECIPE_INGREDIENTS : appears_in
   MEASUREMENT_UNITS ||--o{ RECIPE_INGREDIENTS : measures
+  RECIPES ||--o{ RECIPE_EQUIPMENT : requires
+  EQUIPMENT ||--o{ RECIPE_EQUIPMENT : selected_in
 ```
 
 ## Simple explanation
@@ -25,9 +27,11 @@ erDiagram
 | `recipes` | author/cuisine FKs, `image_url`, time, servings, difficulty, status | Holds the main recipe-card and detail-page data. |
 | `recipe_steps` | `(recipe_id, step_number)` (UK) | Keeps instructions ordered and prevents two step 1 records. |
 | `recipe_ingredients` | recipe/ingredient/unit FKs, quantity, `sort_order` | Records the exact measured ingredients required for a recipe. |
+| `equipment` | `equipment_id` (PK), `equipment_name` (UK), `is_active` | Defines selectable cooking equipment; names must not be blank. |
+| `recipe_equipment` | `(recipe_id, equipment_id)` (composite PK), two FKs | Stores each requirement once; recipe deletion cascades, equipment deletion is restricted while referenced. |
 
 ## Current status
 
-✅ The frontend already shows recipe cards; the recipe-detail and submission pages are still placeholders. The new `recipes.image_url` field supplies the image used by the current cards.
+The frontend has recipe submission/detail pages and consumes `requiredEquipmentIds` / `requiredEquipment`. Database storage is ready; the equipment API/ORM integration remains backend work. `recipes.image_url` stores the URL or path, not image bytes.
 
 [Back to ERD guide](../ERD.md)

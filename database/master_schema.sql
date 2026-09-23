@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   cooking_skill ENUM('beginner', 'intermediate', 'advanced') NOT NULL DEFAULT 'beginner',
   kitchen_access ENUM('none', 'limited', 'shared', 'full') NOT NULL DEFAULT 'shared',
   favourite_cuisines_note VARCHAR(255) NULL,
+  weekly_budget DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -105,6 +106,15 @@ CREATE TABLE IF NOT EXISTS ingredient_allergens (
   CONSTRAINT fk_ia_allergy FOREIGN KEY (allergy_id) REFERENCES allergies(allergy_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS equipment (
+  equipment_id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  equipment_name VARCHAR(80) NOT NULL,
+  description VARCHAR(255) NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  CONSTRAINT ck_equipment_name CHECK (CHAR_LENGTH(TRIM(equipment_name)) > 0),
+  UNIQUE KEY uq_equipment_name (equipment_name)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS recipes (
   recipe_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   author_user_id BIGINT UNSIGNED NOT NULL,
@@ -128,6 +138,15 @@ CREATE TABLE IF NOT EXISTS recipes (
   KEY idx_recipes_author (author_user_id),
   KEY idx_recipes_cuisine (cuisine_id),
   FULLTEXT KEY ft_recipes_title_description (title, description)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS recipe_equipment (
+  recipe_id BIGINT UNSIGNED NOT NULL,
+  equipment_id SMALLINT UNSIGNED NOT NULL,
+  PRIMARY KEY (recipe_id, equipment_id),
+  CONSTRAINT fk_recipe_equipment_recipe FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE,
+  CONSTRAINT fk_recipe_equipment_equipment FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE RESTRICT,
+  KEY idx_recipe_equipment_equipment (equipment_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS recipe_dietary_tags (
@@ -293,6 +312,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   notification_type ENUM('meal_reminder', 'shopping_reminder', 'recipe_update', 'system') NOT NULL,
   title VARCHAR(160) NOT NULL,
   message TEXT NOT NULL,
+  dedupe_key VARCHAR(255) NULL,
   scheduled_for TIMESTAMP NULL,
   read_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
