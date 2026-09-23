@@ -1,12 +1,17 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../services/api'
 const overview = ref(null)   // 整个仪表盘数据
 const updating = ref(null)  // 正在操作的举报 ID（用于禁用按钮）
 onMounted(async () => {
-  overview.value = await api.getAdminOverview()
+  overview.value = await api.getAdminOverview() // 拿统计 + 举报列表
 })
+
+const openReports = computed(() =>
+  overview.value?.reports.filter((r) => r.status === 'Open' || r.status === 'In review') || []
+)
+
 async function updateStatus(reportId, status) {
   updating.value = reportId   // 标记"正在处理这条"
   try {
@@ -65,7 +70,7 @@ async function updateStatus(reportId, status) {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="report in overview.reports" :key="report.id">
+                <tr v-for="report in openReports" :key="report.id">
                   <!-- 目标：标题 + 类型·时间  -->
                   <td>
                     <strong>{{ report.targetTitle }}</strong

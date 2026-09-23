@@ -15,7 +15,7 @@ const filters = ref({
   dietary: 'all',
   cookTime: 'all',
 })
-const filterOpen = ref(false)
+const filterOpen = ref(false)  // 移动端筛选面板开关
 const cuisines = computed(() => [...new Set(recipes.value.map((recipe) => recipe.cuisine))])
 // 从所有食谱的 dietaryTags 里提取不重复的标签
 const dietaryTags = computed(() =>

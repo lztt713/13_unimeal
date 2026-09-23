@@ -26,6 +26,7 @@ async function refreshUser() {
   try {
     user.value = await api.getCurrentUser()
     if (user.value?.role === 'student') {
+      // 学生才拉通知
       updateUnreadNotificationCount(await api.getNotifications())
     } else {
       unreadNotificationCount.value = 0
@@ -36,6 +37,7 @@ async function refreshUser() {
   }
 }
 onMounted(refreshUser)
+//每次路由变化都重新拉，保证徽章数字最新
 watch(() => route.fullPath, () => { apiError.value = ''; refreshUser() })
 const closeNav = () => {
   navOpen.value = false

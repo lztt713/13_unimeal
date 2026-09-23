@@ -34,7 +34,7 @@ const selectedRecipe = computed(() =>
 )
 
 async function loadMealPlan(weekStart) {
-  plan.value = await api.getMealPlan(weekStart)
+  plan.value = await api.getMealPlan(weekStart)// 传周起始日期
   selectedWeekStart.value = plan.value.weekStartDate
 }
 
@@ -265,6 +265,13 @@ async function removeSlot() {
   align-items: center;
   gap: 0.15rem;
   background: #fbfaf6;
+}
+/* 今天的表头高亮 */
+.day-heading.today {
+  background: var(--um-green-light);
+}
+.day-heading.today strong {
+  color: var(--um-coral);
 }
 /* "Mon" / "Tue" 这些星期的缩写 ,"Breakfast" / "Lunch" / "Dinner" */
 .day-heading span,
