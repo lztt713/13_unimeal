@@ -1,6 +1,6 @@
 # UniMeal Planner ERD
 
-This is the authoritative logical ERD for the MySQL schema in [`database/master_schema.sql`](../../database/master_schema.sql). To keep it readable, the 26 tables are shown as seven focused diagrams instead of one crowded image.
+This is the authoritative logical ERD for the MySQL schema in [`database/master_schema.sql`](../../database/master_schema.sql). To keep it readable, the 28 tables are shown as seven focused diagrams instead of one crowded image. Recipe authoring now includes `equipment` and `recipe_equipment`.
 
 Repeated tables are intentional: each diagram is a different view of the **same** database, not a duplicate design.
 
@@ -14,9 +14,9 @@ Repeated tables are intentional: each diagram is a different view of the **same*
 
 | Diagram | What it explains | Current project connection |
 | --- | --- | --- |
-| [1. Accounts and preferences](erd/01-accounts-and-preferences.md) | Roles, user identity, dietary preferences and allergies | Database-ready; the API prototype still uses a temporary SQLite `students` table. |
+| [1. Accounts and preferences](erd/01-accounts-and-preferences.md) | Roles, user identity, dietary preferences and allergies | MySQL-backed accounts and profile data, including weekly budget. |
 | [2. Ingredients and safety](erd/02-ingredients-and-safety.md) | Reusable ingredients, units, categories and allergens | The prototype has ingredients; MySQL adds shared units, categories and safety data. |
-| [3. Recipe authoring](erd/03-recipe-authoring.md) | Creating a recipe, its steps and ingredient quantities | Supports the future recipe-submission and recipe-detail pages. |
+| [3. Recipe authoring](erd/03-recipe-authoring.md) | Creating a recipe, its steps, ingredient quantities and equipment | Equipment storage is ready for the frontend v6 API contract. |
 | [4. Recipe discovery and feedback](erd/04-recipe-discovery-and-feedback.md) | Tags, favourites, ratings and comments | Directly supports the current Recipe Library card and filters. |
 | [5. Meal planning and budget](erd/05-meal-planning-and-budget.md) | Weekly plan, meal slots and budget periods | Matches the Dashboard concept and the future Calendar/Budget pages. |
 | [6. Shopping and pantry](erd/06-shopping-and-pantry.md) | Generated grocery lists, purchase state and home inventory | Matches the backend ingredient-merging prototype and future Shopping List page. |
@@ -27,6 +27,6 @@ Repeated tables are intentional: each diagram is a different view of the **same*
 
 ## Current integration note
 
-The current Vue Dashboard and Recipe Library still load mock data, while the FastAPI prototype currently uses a separate SQLite schema. The MySQL design remains normalised and is not replaced by that temporary prototype.
+Vue reads data through the FastAPI/SQLAlchemy backend using MySQL. The new equipment tables need ORM and endpoint integration; see [the database guide](README.md). This database update does not implement the HTTP endpoints.
 
 `vw_recipe_cards` is a read-only MySQL view for the current Recipe Library card payload. It is intentionally not shown as a physical ERD table.

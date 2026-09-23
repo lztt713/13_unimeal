@@ -26,6 +26,6 @@ erDiagram
 
 ## Current status
 
-✅ The API prototype already calculates recipe and shopping costs from ingredient prices. 🟡 The MySQL schema adds shared units, categories and allergen safety checks. The reference price is separate from the actual price paid on a shopping-list item.
+The API calculates recipe and shopping costs from MySQL ingredient prices. The reference price is separate from the actual price paid on a shopping-list item. The frontend v6 migration adds controlled allergy options and known positive ingredient mappings. Compound products require label review; missing links do not mean allergen-free. See [the database guide](../README.md).
 
 [Back to ERD guide](../ERD.md)
