@@ -6,7 +6,7 @@ import { api } from '../services/api'
 const props = defineProps({ id: { type: String, required: true } })
 const recipe = ref(null)
 const loading = ref(true)
-const selectedRating = ref(0)
+const selectedRating = ref(0)  // 用户当前选的分数
 const ratingSaved = ref(false) // 是否刚评分成功
 const saved = ref(false)  // 是否已收藏
 const user = ref(null)
@@ -56,6 +56,7 @@ onMounted(async () => {
   ])
   recipe.value = recipeData
   user.value = currentUser
+  // 学生才拉收藏状态
   if (currentUser?.role === 'student') {
     const savedIds = await api.getSavedRecipeIds()
     saved.value = savedIds.includes(Number(props.id))

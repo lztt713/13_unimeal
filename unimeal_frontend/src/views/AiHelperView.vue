@@ -13,6 +13,7 @@ const examples = [
   'Quick dinners with rice',
   'High protein meals under 30 minutes',
 ]
+// 把用户的饮食偏好和菜系拼成一个数组，展示在页面下方
 const savedPreferences = computed(() => [
   ...(profile.value?.dietaryPreferences || []),
   ...(profile.value?.favouriteCuisines || []).map((cuisine) => `Likes ${cuisine}`),
@@ -39,8 +40,8 @@ async function ask() {
 }
 
 function useExample(example) {
-  query.value = example
-  ask()
+  query.value = example  // 填充输入框
+  ask()  // 立即搜索
 }
 </script>
 
@@ -78,6 +79,7 @@ function useExample(example) {
           {{ example }}
         </button>
       </div>
+      <!-- 已保存偏好展示 -->
       <p v-if="savedPreferences.length" class="text-secondary small text-center mt-3 mb-0">
         Saved preferences: {{ savedPreferences.join(' · ') }}
       </p>

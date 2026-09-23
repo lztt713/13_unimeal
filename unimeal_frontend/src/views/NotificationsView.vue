@@ -5,24 +5,27 @@ import { updateUnreadNotificationCount } from '../services/notificationState'
 
 const notifications = ref([])
 const loading = ref(true)
-const view = ref('unread')
+const view = ref('unread')  // 当前视图：'unread' 或 'all'
 // ---------- Computed: unread count ----------
+// 未读数
 const unreadCount = computed(
   () => notifications.value.filter((notification) => !notification.read).length,
 )
+// 已读数
 const readCount = computed(
   () => notifications.value.filter((notification) => notification.read).length,
 )
+// 当前显示的通知列表（根据 view 切换）
 const visibleNotifications = computed(() =>
   view.value === 'unread'
-    ? notifications.value.filter((notification) => !notification.read)
-    : notifications.value,
+    ? notifications.value.filter((notification) => !notification.read) // 只看未读
+    : notifications.value,   // 全部
 )
 
 onMounted(async () => {
   try {
     notifications.value = await api.getNotifications()
-    updateUnreadNotificationCount(notifications.value)
+    updateUnreadNotificationCount(notifications.value) // 同步全局未读数
   } finally {
     loading.value = false
   }
@@ -34,7 +37,7 @@ async function markAsRead(notification) {
   const updated = await api.markNotificationRead(notification.id)
   if (updated) {
     notification.read = updated.read
-    updateUnreadNotificationCount(notifications.value)
+    updateUnreadNotificationCount(notifications.value)  //  同步全局未读数
   }
 }
 
