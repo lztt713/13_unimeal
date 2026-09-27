@@ -57,7 +57,12 @@ CREATE TABLE IF NOT EXISTS user_dietary_preferences (
 
 CREATE TABLE IF NOT EXISTS allergies (
   allergy_id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  allergy_name VARCHAR(80) NOT NULL,
+  allergy_name VARCHAR(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  CONSTRAINT ck_allergies_name_valid CHECK (
+    CHAR_LENGTH(TRIM(allergy_name)) > 0
+    AND CHAR_LENGTH(allergy_name) = CHAR_LENGTH(TRIM(allergy_name))
+    AND LOWER(allergy_name) <> 'no known allergies'
+  ),
   UNIQUE KEY uq_allergies_name (allergy_name)
 ) ENGINE=InnoDB;
 
@@ -87,13 +92,17 @@ CREATE TABLE IF NOT EXISTS measurement_units (
 CREATE TABLE IF NOT EXISTS ingredients (
   ingredient_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   ingredient_category_id SMALLINT UNSIGNED NOT NULL,
-  ingredient_name VARCHAR(120) NOT NULL,
+  ingredient_name VARCHAR(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   default_measurement_unit_id SMALLINT UNSIGNED NULL,
   estimated_unit_cost DECIMAL(12,4) NOT NULL DEFAULT 0.0000,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   CONSTRAINT fk_ingredients_category FOREIGN KEY (ingredient_category_id) REFERENCES ingredient_categories(ingredient_category_id),
   CONSTRAINT fk_ingredients_default_unit FOREIGN KEY (default_measurement_unit_id) REFERENCES measurement_units(measurement_unit_id),
   CONSTRAINT ck_ingredients_estimated_unit_cost CHECK (estimated_unit_cost >= 0),
+  CONSTRAINT ck_ingredients_name_valid CHECK (
+    CHAR_LENGTH(TRIM(ingredient_name)) > 0
+    AND CHAR_LENGTH(ingredient_name) = CHAR_LENGTH(TRIM(ingredient_name))
+  ),
   UNIQUE KEY uq_ingredients_name (ingredient_name),
   KEY idx_ingredients_category_active (ingredient_category_id, is_active)
 ) ENGINE=InnoDB;

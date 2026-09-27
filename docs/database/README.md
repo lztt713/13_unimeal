@@ -14,7 +14,8 @@ The logical design is split into readable diagrams in [`ERD.md`](ERD.md).
 2. Run `database/master_schema.sql`.
 3. Run `database/sample_data.sql`.
 4. Run `database/migrations/20260923_frontend_equipment_and_allergens.sql`.
-5. Optionally run `database/validation_queries.sql` against a disposable development database with the seed fixtures present. Confirm every validation row is `PASS`.
+5. Run `database/migrations/20260927_allergy_warning_data.sql`.
+6. Optionally run `database/validation_queries.sql` against a disposable development database with the seed fixtures present. Confirm every validation row is `PASS`.
 
 The current schema has 28 base tables. `users.weekly_budget` and
 `notifications.dedupe_key` are included in fresh installations. If optional recipe
@@ -37,6 +38,23 @@ If an author intentionally clears a seeded recipe's equipment, re-running this
 data migration will populate that empty list again. This is an installation /
 upgrade step, not something to run on every application startup. MySQL DDL is
 not transactionally reversible; use the backup to recover a failed upgrade.
+
+For allergy warnings, run `database/migrations/20260927_allergy_warning_data.sql`
+after the frontend v6 migration. It keeps the ten curated allergy options and
+defines eleven known ingredient links (only for ingredients present). It
+normalises the supplied ingredient names, removes the `No known allergies`
+placeholder if an older database has it, and prevents future blank/padded names
+or that placeholder. A user with no known allergies
+has zero `user_allergies` rows. The case-insensitive ingredient name unique key
+prevents separate `carrot` and `Carrot` records. If another installation already
+has normalized-name duplicates, the migration stops before changing data:
+their IDs and recipe/shopping/pantry references need a reviewed merge.
+
+`recipe_ingredients -> ingredient_allergens -> allergies` is the source for
+recipe allergen tags; there is no separately maintained recipe-allergen table.
+Only confirmed positive ingredient mappings are inserted. Hummus, Vegetable
+Stock and other compound products need label review before assigning allergens;
+an absent mapping is not proof that a recipe is allergen-free.
 
 The backend must expose equipment as `{id, name}`, persist `requiredEquipmentIds`
 through `recipe_equipment`, and return `requiredEquipment` on recipe details.
