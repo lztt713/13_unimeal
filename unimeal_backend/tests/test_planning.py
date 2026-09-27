@@ -414,5 +414,25 @@ class PlanningFlowTest(unittest.TestCase):
         delete_meal_plan_entry(plan["entries"][0]["id"], self.db, self.student)
         self.assertEqual(planning_reminder_candidates(self.db, self.student_id, reference_date), [])
 
+    def test_old_active_shopping_list_does_not_trigger_current_week_reminder(self):
+        current_week = current_week_start()
+        old_week = current_week - timedelta(days=7)
+        save_meal_plan_entry(
+            MealPlanEntryWrite(
+                plannedDate=old_week + timedelta(days=1),
+                mealType="Dinner",
+                recipeId=self.recipe_id,
+                plannedServings=1,
+            ),
+            self.db,
+            self.student,
+        )
+        old_list = generate_shopping_list(old_week, self.db, self.student)
+        self.assertTrue(any(not item["purchased"] for item in old_list["items"]))
+
+        reminders = planning_reminder_candidates(self.db, self.student_id, current_week)
+
+        self.assertNotIn("shopping_list", {item["type"] for item in reminders})
+
 if __name__ == "__main__":
     unittest.main()

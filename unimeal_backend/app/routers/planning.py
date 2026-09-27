@@ -270,6 +270,7 @@ def planning_reminder_candidates(
 ) -> list[dict[str, str]]:
     today = reference_date or date.today()
     tomorrow = today + timedelta(days=1)
+    current_week_start = _week_start(today)
     reminders = []
 
     tomorrow_meal = (
@@ -296,9 +297,11 @@ def planning_reminder_candidates(
     unpurchased_item = (
         db.query(ShoppingListItem)
         .join(ShoppingList)
+        .join(MealPlan, ShoppingList.meal_plan_id == MealPlan.meal_plan_id)
         .filter(
             ShoppingList.user_id == user_id,
             ShoppingList.status == "active",
+            MealPlan.week_start_date == current_week_start,
             ShoppingListItem.is_purchased.is_(False),
         )
         .first()
