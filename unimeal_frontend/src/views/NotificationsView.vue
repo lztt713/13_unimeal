@@ -77,9 +77,9 @@ async function clearRead() {
             Mark all as read
           </button>
           <button
+            v-if="view === 'all' && readCount"
             class="btn btn-outline-danger"
             type="button"
-            :disabled="!readCount"
             @click="clearRead"
           >
             Clear read
