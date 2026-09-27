@@ -33,7 +33,8 @@ if (-not $mysql) {
         "$root\database\sample_data.sql",
         "$root\database\migrations\20260919_profile_and_notifications.sql",
         "$root\database\migrations\20260920_demo_recipe_data.sql",
-        "$root\database\migrations\20260923_frontend_equipment_and_allergens.sql"
+        "$root\database\migrations\20260923_frontend_equipment_and_allergens.sql",
+        "$root\database\migrations\20260927_allergy_warning_data.sql"
     )
     foreach ($sql in $sqlFiles) {
         Get-Content -Raw $sql | & $mysql "-uroot" "-p$pw"

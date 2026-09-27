@@ -83,6 +83,8 @@ class AuthFlowTest(MySQLTestCase):
 
     def test_profile_update_persists_preferences(self):
         user = register_user(self.db, "Alice", "alice@example.com", "secret123", "student")
+        self.db.add_all([Allergy(allergy_name="Peanut"), Allergy(allergy_name="Dairy")])
+        self.db.commit()
         payload = ProfileUpdate(
             displayName="Alice Updated",
             weeklyBudget=45.5,
@@ -106,6 +108,42 @@ class AuthFlowTest(MySQLTestCase):
         self.assertEqual(reloaded.kitchen_access, "full")
         self.assertEqual({a.allergy_name for a in reloaded.allergies}, {"Peanut", "Dairy"})
         self.assertEqual({t.tag_name for t in reloaded.dietary_preferences}, {"Vegetarian", "Vegan"})
+
+    def test_profile_update_rejects_unknown_allergy_without_creating_it(self):
+        user = register_user(self.db, "Alice", "alice@example.com", "secret123", "student")
+        self.db.add(Allergy(allergy_name="Dairy"))
+        self.db.commit()
+
+        with self.assertRaises(HTTPException) as error:
+            apply_profile_update(
+                self.db,
+                user,
+                ProfileUpdate(displayName="Should not persist", allergies=["Dairy", "Dragonfruit"]),
+            )
+
+        self.assertEqual(error.exception.status_code, 400)
+        self.assertIn("Dragonfruit", error.exception.detail)
+        self.assertIsNone(
+            self.db.query(Allergy).filter(Allergy.allergy_name == "Dragonfruit").first()
+        )
+        self.db.refresh(user)
+        self.assertEqual(user.display_name, "Alice")
+        self.assertEqual(user.allergies, [])
+
+    def test_profile_update_uses_canonical_allergy_rows_case_insensitively(self):
+        user = register_user(self.db, "Alice", "alice@example.com", "secret123", "student")
+        dairy = Allergy(allergy_name="Dairy")
+        self.db.add(dairy)
+        self.db.commit()
+
+        response = apply_profile_update(
+            self.db,
+            user,
+            ProfileUpdate(allergies=["dairy", " Dairy "]),
+        )
+
+        self.assertEqual(response["allergies"], ["Dairy"])
+        self.assertEqual(self.db.query(Allergy).count(), 1)
 
     def test_user_response_shape(self):
         user = register_user(self.db, "Alice", "alice@example.com", "secret123", "student")

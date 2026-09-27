@@ -76,7 +76,8 @@ npm run dev
 
 For an existing database, apply both
 `database/migrations/20260919_profile_and_notifications.sql` and
-`database/migrations/20260923_frontend_equipment_and_allergens.sql`. Fresh installs
+`database/migrations/20260923_frontend_equipment_and_allergens.sql`, followed by
+`database/migrations/20260927_allergy_warning_data.sql`. Fresh installs
 can use `setup.ps1`, which applies the schema, sample data, and current migrations.
 
 ## Checks（测试 / 构建）

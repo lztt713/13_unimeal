@@ -9,7 +9,7 @@ owns persistence, deduplication and the read/unread API.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -57,7 +57,25 @@ def sync_notifications(db: Session, user_id: int) -> None:
     去重核心：每个触发条件带一个 dedupe_key（如 meal_plan:{uid}:{date}），
     同一用户 + 同一 key 已存在就跳过，避免重复提醒被反复写入。
     """
-    for candidate in planning_reminder_candidates(db, user_id):
+    candidates = planning_reminder_candidates(db, user_id)
+    candidate_keys = {candidate.get("dedupe_key") for candidate in candidates}
+
+    # A shopping reminder describes live state, rather than an immutable event.
+    # If today's active list no longer contains an unpurchased item, remove the
+    # reminder that was created earlier today so the API cannot return stale UI.
+    today_shopping_key = f"shopping_list:{user_id}:{date.today().isoformat()}"
+    if today_shopping_key not in candidate_keys:
+        (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.notification_type == "shopping_reminder",
+                Notification.dedupe_key == today_shopping_key,
+            )
+            .delete(synchronize_session=False)
+        )
+
+    for candidate in candidates:
         dedupe_key = candidate.get("dedupe_key")
         if dedupe_key and (
             db.query(Notification)

@@ -102,6 +102,35 @@ class NotificationFlowTest(MySQLTestCase):
         second = self.db.query(Notification).filter(Notification.user_id == self.student_id).all()
         self.assertEqual(len(second), len(first))
 
+    def test_sync_removes_stale_shopping_reminder_when_nothing_is_unpurchased(self):
+        sync_notifications(self.db, self.student_id)
+        shopping_notification = (
+            self.db.query(Notification)
+            .filter(
+                Notification.user_id == self.student_id,
+                Notification.notification_type == "shopping_reminder",
+            )
+            .one()
+        )
+        self.assertIsNotNone(shopping_notification)
+
+        item = self.db.query(ShoppingListItem).one()
+        item.is_purchased = True
+        self.db.commit()
+
+        notifications = list_notifications(self.db, self.student)
+
+        self.assertNotIn("Shopping reminder", {item["type"] for item in notifications})
+        self.assertEqual(
+            self.db.query(Notification)
+            .filter(
+                Notification.user_id == self.student_id,
+                Notification.notification_type == "shopping_reminder",
+            )
+            .count(),
+            0,
+        )
+
     def test_list_and_read_flow(self):
         notifications = list_notifications(self.db, self.student)
         self.assertEqual(len(notifications), 2)

@@ -64,16 +64,41 @@ def _get_or_create_tag(db: Session, name: str) -> DietaryTag | None:
     return tag
 
 
-def _get_or_create_allergy(db: Session, name: str) -> Allergy | None:
-    name = name.strip()
-    if not name:
-        return None
-    allergy = db.query(Allergy).filter(func.lower(Allergy.allergy_name) == name.lower()).first()
-    if allergy is None:
-        allergy = Allergy(allergy_name=name)
-        db.add(allergy)
-        db.flush()
-    return allergy
+def _resolve_allergies(db: Session, names: list[str]) -> list[Allergy]:
+    """Resolve profile allergies against the controlled database catalogue.
+
+    Allergy options are reference data returned by ``GET /api/allergies``.
+    Profile updates may select those rows, but must never create new allergy
+    records from arbitrary client text.
+    """
+    requested: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for value in names:
+        display_value = value.strip()
+        lookup = display_value.casefold()
+        if lookup not in seen:
+            requested.append((display_value, lookup))
+            seen.add(lookup)
+
+    if not requested:
+        return []
+
+    rows = (
+        db.query(Allergy)
+        .filter(func.lower(Allergy.allergy_name).in_([lookup for _, lookup in requested]))
+        .all()
+    )
+    by_name = {row.allergy_name.casefold(): row for row in rows}
+    unknown = [display or "<blank>" for display, lookup in requested if lookup not in by_name]
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown allergies: {', '.join(unknown)}. "
+                "Choose values returned by GET /api/allergies."
+            ),
+        )
+    return [by_name[lookup] for _, lookup in requested]
 
 
 def user_to_response(user: User) -> dict:
@@ -161,6 +186,10 @@ def apply_profile_update(db: Session, user: User, payload: ProfileUpdate) -> dic
     只更新前端传来的字段（部分更新）；偏好列表（饮食偏好/过敏原）整体替换，
     展示名（Beginner/...）反向映射回数据库枚举值后保存。
     """
+    resolved_allergies = (
+        _resolve_allergies(db, payload.allergies) if payload.allergies is not None else None
+    )
+
     if payload.display_name is not None:
         user.display_name = payload.display_name.strip() or user.display_name
     if payload.weekly_budget is not None:
@@ -183,12 +212,8 @@ def apply_profile_update(db: Session, user: User, payload: ProfileUpdate) -> dic
         user.dietary_preferences = [
             tag for tag in (_get_or_create_tag(db, name) for name in payload.dietary_preferences) if tag
         ]
-    if payload.allergies is not None:
-        user.allergies = [
-            allergy
-            for allergy in (_get_or_create_allergy(db, name) for name in payload.allergies)
-            if allergy
-        ]
+    if resolved_allergies is not None:
+        user.allergies = resolved_allergies
     if payload.favourite_cuisines is not None:
         user.favourite_cuisines_note = ", ".join(
             value.strip() for value in payload.favourite_cuisines if value.strip()
