@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func
@@ -21,7 +21,7 @@ from app.auth import (
     verify_password,
 )
 from app.database import get_db
-from app.models import Allergy, DietaryTag, Role, User
+from app.models import Allergy, BudgetPeriod, DietaryTag, Role, User
 from app.schemas import LoginRequest, ProfileUpdate, RegisterRequest, UserResponse
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -165,6 +165,16 @@ def apply_profile_update(db: Session, user: User, payload: ProfileUpdate) -> dic
         user.display_name = payload.display_name.strip() or user.display_name
     if payload.weekly_budget is not None:
         user.weekly_budget = payload.weekly_budget
+        today = date.today()
+        (
+            db.query(BudgetPeriod)
+            .filter(
+                BudgetPeriod.user_id == user.user_id,
+                BudgetPeriod.period_start <= today,
+                BudgetPeriod.period_end >= today,
+            )
+            .update({BudgetPeriod.budget_amount: payload.weekly_budget}, synchronize_session=False)
+        )
     if payload.cooking_skill is not None:
         user.cooking_skill = COOKING_SKILL_DB.get(payload.cooking_skill, user.cooking_skill)
     if payload.kitchen_access is not None:

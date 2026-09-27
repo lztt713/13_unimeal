@@ -67,11 +67,17 @@ npm run dev
 - Budget summary calculated from purchased shopping-list items
 - Dashboard budget, today's dinner, and saved-recipe integration
 - Notifications with reminder deduplication, single/all read endpoints
+- Recipe image upload, equipment/allergen lookup, and required-equipment persistence
+- Profile-aware AI/database recommendations that enforce allergy, budget, dietary,
+  cooking-time, cuisine, ingredient, and kitchen-access constraints
+- Notification cleanup, student-only favourites, and current-budget synchronisation
 - Content reports and administrator overview, management, user/recipe moderation,
   and ingredient-category management
 
-Before the first run, apply `database/migrations/20260919_profile_and_notifications.sql`
-after `master_schema.sql` and `sample_data.sql` to add the profile and notification columns.
+For an existing database, apply both
+`database/migrations/20260919_profile_and_notifications.sql` and
+`database/migrations/20260923_frontend_equipment_and_allergens.sql`. Fresh installs
+can use `setup.ps1`, which applies the schema, sample data, and current migrations.
 
 ## Checks（测试 / 构建）
 

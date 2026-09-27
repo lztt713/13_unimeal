@@ -7,8 +7,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from pydantic import BaseModel, ConfigDict, Field
-
 api_model_config = ConfigDict(
     from_attributes=True,
     populate_by_name=True,
@@ -67,6 +65,27 @@ class RecipeCommentResponse(BaseModel):
     created_at: str | None = Field(default=None, alias="createdAt")
 
 
+class EquipmentResponse(BaseModel):
+    model_config = api_model_config
+
+    id: int
+    name: str
+    description: str | None = None
+
+
+class AllergyResponse(BaseModel):
+    model_config = api_model_config
+
+    id: int
+    name: str
+
+
+class RecipeImageUploadResponse(BaseModel):
+    model_config = api_model_config
+
+    image_url: str = Field(alias="imageUrl")
+
+
 class RecipeBase(BaseModel):
     """Fields shared by create, update, and response payloads."""
 
@@ -89,6 +108,8 @@ class RecipeBase(BaseModel):
 class RecipeCreate(RecipeBase):
     """Schema for creating a recipe against the normalized MySQL tables."""
 
+    required_equipment_ids: list[int] = Field(default_factory=list, alias="requiredEquipmentIds")
+
 
 class RecipeUpdate(BaseModel):
     """Partial update schema for contributor recipe edits."""
@@ -108,6 +129,7 @@ class RecipeUpdate(BaseModel):
     ingredient_details: list[RecipeIngredientDetail] | None = Field(default=None, alias="ingredientDetails")
     steps: list[str] | None = None
     status: str | None = None
+    required_equipment_ids: list[int] | None = Field(default=None, alias="requiredEquipmentIds")
 
 
 class RecipeResponse(RecipeBase):
@@ -119,6 +141,7 @@ class RecipeResponse(RecipeBase):
     status: str = "Draft"
     comments: list[RecipeCommentResponse] = Field(default_factory=list)
     allergen_tags: list[str] = Field(default_factory=list, alias="allergenTags")
+    required_equipment: list[EquipmentResponse] = Field(default_factory=list, alias="requiredEquipment")
 
 
 class StudentResponse(BaseModel):

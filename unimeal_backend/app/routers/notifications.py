@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Notification, User, saved_recipes
+from app.models import Notification, Role, User, saved_recipes
 from app.routers.planning import planning_reminder_candidates
 from app.schemas import NotificationResponse
 
@@ -104,7 +104,12 @@ def notify_recipe_updated(db: Session, recipe) -> None:
     savers = (
         db.query(User)
         .join(saved_recipes, saved_recipes.c.user_id == User.user_id)
-        .filter(saved_recipes.c.recipe_id == recipe.recipe_id)
+        .join(Role, User.role_id == Role.role_id)
+        .filter(
+            saved_recipes.c.recipe_id == recipe.recipe_id,
+            Role.role_name == "student",
+            User.user_id != recipe.author_user_id,
+        )
         .all()
     )
     for saver in savers:
@@ -152,6 +157,17 @@ def mark_all_notifications_read(db: Session, user: User) -> list[dict]:
     return _list(db, user.user_id)
 
 
+def delete_read_notifications(db: Session, user: User) -> list[dict]:
+    """Delete only read notifications owned by the current user."""
+    (
+        db.query(Notification)
+        .filter(Notification.user_id == user.user_id, Notification.read_at.is_not(None))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return _list(db, user.user_id)
+
+
 # ZZH: 列表接口在返回前先同步一次提醒，这样"明天有餐/购物清单未购"会即时出现。
 # Listing first syncs reminders so new triggers appear without a cron job.
 @router.get("/notifications", response_model=list[NotificationResponse])
@@ -178,3 +194,12 @@ def read_notification(
 def read_all_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Mark every notification for the current user as read."""
     return mark_all_notifications_read(db, user)
+
+
+@router.delete("/notifications/read", response_model=list[NotificationResponse])
+def clear_read_notifications(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete the current user's read notifications and keep unread records."""
+    return delete_read_notifications(db, user)

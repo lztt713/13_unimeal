@@ -8,17 +8,22 @@
 from __future__ import annotations
 
 from datetime import datetime
+from email import policy
+from email.parser import BytesParser
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth import contributor_user, get_current_user, get_current_user_optional
+from app.auth import contributor_user, get_current_user, get_current_user_optional, student_user
 from app.database import get_db
 from app.models import (
     Allergy,
     Cuisine,
     DietaryTag,
+    Equipment,
     Ingredient,
     MealPlanEntry,
     MeasurementUnit,
@@ -34,11 +39,14 @@ from app.models import (
 )
 from app.schemas import (
     CommentCreate,
+    AllergyResponse,
+    EquipmentResponse,
     IngredientResponse,
     MergedIngredient,
     RatingCreate,
     RecipeCreate,
     RecipeResponse,
+    RecipeImageUploadResponse,
     RecipeSearchParams,
     RecipeUpdate,
     ShoppingListResponse,
@@ -54,6 +62,8 @@ from app.routers.notifications import notify_recipe_updated
 router = APIRouter(prefix="/api", tags=["recipes"])
 
 VALID_RECIPE_STATUSES = {"draft", "published", "archived"}
+UPLOAD_DIRECTORY = Path(__file__).resolve().parents[2] / "uploads" / "recipe-images"
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 def _display_difficulty(value: str | None) -> str:
@@ -140,6 +150,20 @@ def _unit_for_ingredient(db: Session, ingredient: Ingredient, unit_symbol: str |
 
 def _replace_recipe_tags(db: Session, recipe: Recipe, tag_names: list[str]) -> None:
     recipe.dietary_tags = [_get_or_create_tag(db, tag_name) for tag_name in tag_names if tag_name.strip()]
+
+
+def _replace_recipe_equipment(db: Session, recipe: Recipe, equipment_ids: list[int]) -> None:
+    unique_ids = list(dict.fromkeys(equipment_ids or []))
+    if not unique_ids:
+        recipe.required_equipment = []
+        return
+
+    equipment = db.query(Equipment).filter(Equipment.equipment_id.in_(unique_ids)).all()
+    found_ids = {int(item.equipment_id) for item in equipment}
+    missing = sorted(set(unique_ids) - found_ids)
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Equipment not found: {missing}")
+    recipe.required_equipment = equipment
 
 
 def _replace_recipe_ingredients(db: Session, recipe: Recipe, ingredient_details) -> None:
@@ -243,6 +267,14 @@ def _recipe_to_response(recipe: Recipe, db: Session, include_comments: bool = Fa
         "steps": [step.instruction for step in recipe.steps],
         "comments": _recipe_comments(db, int(recipe.recipe_id)) if include_comments else [],
         "allergen_tags": _recipe_allergens(db, int(recipe.recipe_id)),
+        "required_equipment": [
+            {
+                "id": int(item.equipment_id),
+                "name": item.equipment_name,
+                "description": item.description,
+            }
+            for item in recipe.required_equipment
+        ],
     }
 
 
@@ -254,6 +286,77 @@ def _can_manage_recipe(recipe: Recipe, user: User | None) -> bool:
     if user is None:
         return False
     return recipe.author_user_id == user.user_id or user.role.role_name == "administrator"
+
+
+def _image_extension(content: bytes) -> str | None:
+    if content.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if content.startswith((b"GIF87a", b"GIF89a")):
+        return ".gif"
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+@router.post("/uploads/recipe-image", response_model=RecipeImageUploadResponse, status_code=201)
+async def upload_recipe_image(
+    request: Request,
+    _contributor: User = Depends(contributor_user),
+):
+    """Store one validated recipe image without trusting the supplied filename."""
+    content_type = request.headers.get("content-type", "")
+    if not content_type.lower().startswith("multipart/form-data"):
+        raise HTTPException(status_code=415, detail="Upload must use multipart/form-data")
+
+    body = await request.body()
+    if len(body) > MAX_IMAGE_BYTES + 512 * 1024:
+        raise HTTPException(status_code=413, detail="Recipe image must be 5 MB or smaller")
+
+    message = BytesParser(policy=policy.default).parsebytes(
+        f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + body
+    )
+    image_bytes = None
+    for part in message.iter_parts() if message.is_multipart() else []:
+        if part.get_param("name", header="content-disposition") == "file":
+            image_bytes = part.get_payload(decode=True)
+            break
+
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="A recipe image file is required")
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Recipe image must be 5 MB or smaller")
+
+    extension = _image_extension(image_bytes)
+    if extension is None:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG, GIF, or WebP images are supported")
+
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{extension}"
+    (UPLOAD_DIRECTORY / filename).write_bytes(image_bytes)
+    return {"image_url": str(request.url_for("recipe-images", path=filename))}
+
+
+@router.get("/equipment", response_model=list[EquipmentResponse])
+def list_equipment(
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    rows = db.query(Equipment).order_by(Equipment.equipment_name.asc()).all()
+    return [
+        {"id": int(item.equipment_id), "name": item.equipment_name, "description": item.description}
+        for item in rows
+    ]
+
+
+@router.get("/allergies", response_model=list[AllergyResponse])
+def list_allergies(
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    rows = db.query(Allergy).order_by(Allergy.allergy_name.asc()).all()
+    return [{"id": int(item.allergy_id), "name": item.allergy_name} for item in rows]
 
 
 @router.get("/ingredients", response_model=list[IngredientResponse])
@@ -369,6 +472,7 @@ def create_recipe(
     db.flush()
 
     _replace_recipe_tags(db, recipe, payload.dietary_tags)
+    _replace_recipe_equipment(db, recipe, payload.required_equipment_ids)
     _replace_recipe_ingredients(db, recipe, payload.ingredient_details)
     _replace_recipe_steps(db, recipe, payload.steps)
     if payload.ingredient_details:
@@ -416,6 +520,8 @@ def update_recipe(
         recipe.status = _db_status(payload.status)
     if payload.dietary_tags is not None:
         _replace_recipe_tags(db, recipe, payload.dietary_tags)
+    if payload.required_equipment_ids is not None:
+        _replace_recipe_equipment(db, recipe, payload.required_equipment_ids)
     if payload.ingredient_details is not None:
         _replace_recipe_ingredients(db, recipe, payload.ingredient_details)
     if payload.steps is not None:
@@ -529,7 +635,7 @@ def add_recipe_comment(
 
 
 @router.get("/saved-recipes", response_model=list[int])
-def get_saved_recipe_ids(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_saved_recipe_ids(db: Session = Depends(get_db), user: User = Depends(student_user)):
     """Return recipe IDs saved by the current user."""
     rows = db.execute(select(saved_recipes.c.recipe_id).where(saved_recipes.c.user_id == user.user_id)).all()
     return [int(row[0]) for row in rows]
@@ -539,7 +645,7 @@ def get_saved_recipe_ids(db: Session = Depends(get_db), user: User = Depends(get
 def toggle_saved_recipe(
     recipe_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(student_user),
 ):
     """Toggle whether the current user has saved a published recipe."""
     recipe = (
@@ -577,13 +683,21 @@ def toggle_saved_recipe(
 def get_shopping_list(
     recipe_ids: str = Query(..., description="Comma-separated recipe IDs, e.g. 1,2,3"),
     db: Session = Depends(get_db),
+    _student: User = Depends(student_user),
 ):
     """Generate a deduplicated shopping list for selected recipes."""
-    ids = [int(x.strip()) for x in recipe_ids.split(",") if x.strip()]
+    try:
+        ids = list(dict.fromkeys(int(x.strip()) for x in recipe_ids.split(",") if x.strip()))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Recipe IDs must be integers") from exc
     if not ids:
         raise HTTPException(status_code=400, detail="At least one recipe ID is required")
 
-    existing = db.query(Recipe.recipe_id).filter(Recipe.recipe_id.in_(ids)).all()
+    existing = (
+        db.query(Recipe.recipe_id)
+        .filter(Recipe.recipe_id.in_(ids), Recipe.status == "published")
+        .all()
+    )
     existing_ids = {int(row[0]) for row in existing}
     missing = set(ids) - existing_ids
     if missing:
