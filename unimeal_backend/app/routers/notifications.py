@@ -9,7 +9,7 @@ owns persistence, deduplication and the read/unread API.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -52,28 +52,36 @@ def _notification_response(notification: Notification) -> dict:
 
 
 def sync_notifications(db: Session, user_id: int) -> None:
-    """Create any missing reminders for the user, deduplicated by dedupe_key.
+    """Reconcile live reminders and create any currently missing ones.
 
     去重核心：每个触发条件带一个 dedupe_key（如 meal_plan:{uid}:{date}），
     同一用户 + 同一 key 已存在就跳过，避免重复提醒被反复写入。
+
+    Meal and shopping reminders describe current state. Only keys emitted by
+    ``planning_reminder_candidates`` remain valid; older or no-longer-true
+    state reminders are removed. Recipe updates are event notifications and
+    are deliberately excluded from this reconciliation.
     """
     candidates = planning_reminder_candidates(db, user_id)
-    candidate_keys = {candidate.get("dedupe_key") for candidate in candidates}
+    active_state_keys = {
+        candidate["dedupe_key"]
+        for candidate in candidates
+        if candidate.get("dedupe_key")
+        and candidate["type"] in CANDIDATE_TYPE_MAP
+    }
 
-    # A shopping reminder describes live state, rather than an immutable event.
-    # If today's active list no longer contains an unpurchased item, remove the
-    # reminder that was created earlier today so the API cannot return stale UI.
-    today_shopping_key = f"shopping_list:{user_id}:{date.today().isoformat()}"
-    if today_shopping_key not in candidate_keys:
-        (
-            db.query(Notification)
-            .filter(
-                Notification.user_id == user_id,
-                Notification.notification_type == "shopping_reminder",
-                Notification.dedupe_key == today_shopping_key,
-            )
-            .delete(synchronize_session=False)
+    existing_state_reminders = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == user_id,
+            Notification.notification_type.in_(("meal_reminder", "shopping_reminder")),
+            Notification.dedupe_key.is_not(None),
         )
+        .all()
+    )
+    for reminder in existing_state_reminders:
+        if reminder.dedupe_key not in active_state_keys:
+            db.delete(reminder)
 
     for candidate in candidates:
         dedupe_key = candidate.get("dedupe_key")

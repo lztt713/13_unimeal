@@ -222,6 +222,62 @@ class CompletedIntegrationTest(unittest.TestCase):
             .first()
         )
 
+    def test_notification_sync_expires_state_reminders_but_keeps_recipe_events(self):
+        yesterday = date.today() - timedelta(days=1)
+        recipe_update = Notification(
+            user_id=self.user.user_id,
+            notification_type="recipe_update",
+            title="Saved recipe updated",
+            message="A saved recipe changed.",
+            dedupe_key=f"recipe_update:{self.user.user_id}:42:2026-09-27T10:00:00",
+        )
+        self.db.add_all(
+            [
+                Notification(
+                    user_id=self.user.user_id,
+                    notification_type="meal_reminder",
+                    title="Tomorrow's meals",
+                    message="You have meals planned for tomorrow.",
+                    dedupe_key=f"meal_plan:{self.user.user_id}:{yesterday.isoformat()}",
+                ),
+                Notification(
+                    user_id=self.user.user_id,
+                    notification_type="shopping_reminder",
+                    title="Shopping list reminder",
+                    message="Your shopping list still has unpurchased items.",
+                    dedupe_key=f"shopping_list:{self.user.user_id}:{yesterday.isoformat()}",
+                ),
+                recipe_update,
+            ]
+        )
+        self.db.commit()
+
+        sync_notifications(self.db, self.user.user_id)
+
+        remaining = self.db.query(Notification).filter(Notification.user_id == self.user.user_id).all()
+        self.assertEqual([item.notification_type for item in remaining], ["recipe_update"])
+
+    def test_cleared_recipe_update_is_not_recreated_by_notification_sync(self):
+        self.db.add(
+            Notification(
+                user_id=self.user.user_id,
+                notification_type="recipe_update",
+                title="Saved recipe updated",
+                message="A saved recipe changed.",
+                dedupe_key=f"recipe_update:{self.user.user_id}:42:2026-09-27T10:00:00",
+                read_at=datetime.now(),
+            )
+        )
+        self.db.commit()
+
+        self.assertEqual(delete_read_notifications(self.db, self.user), [])
+        sync_notifications(self.db, self.user.user_id)
+
+        self.assertEqual(
+            self.db.query(Notification).filter(Notification.user_id == self.user.user_id).count(),
+            0,
+        )
+
     def test_fallback_ranking_respects_allergy_kitchen_and_query_budget(self):
         recipes = [
             {
