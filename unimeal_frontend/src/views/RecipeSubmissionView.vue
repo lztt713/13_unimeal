@@ -100,6 +100,11 @@ function clearSelectedImage() {
   if (imageInput.value) imageInput.value.value = ''
 }
 
+function removeCurrentImage() {
+  clearSelectedImage()
+  form.value.imageUrl = ''
+}
+
 function selectImage(event) {
   const file = event.target.files?.[0]
   if (!file) return
@@ -382,17 +387,19 @@ async function submitRecipe() {
             <p v-if="selectedImage" class="small text-secondary mt-2 mb-0">
               Selected: {{ selectedImage.name }}
             </p>
-            <button
-              v-if="selectedImage"
-              class="btn btn-link text-danger p-0 mt-2"
-              type="button"
-              @click="clearSelectedImage"
-            >
-              Remove selected image
-            </button>
             <p v-if="imageError" class="text-danger small mt-2 mb-0">{{ imageError }}</p>
             <div class="image-url-field">
-              <label class="form-label" for="image">Image URL (optional)</label>
+              <div class="image-url-heading">
+                <label class="form-label mb-0" for="image">Image URL (optional)</label>
+                <button
+                  v-if="selectedImage || form.imageUrl"
+                  class="btn btn-outline-danger btn-sm"
+                  type="button"
+                  @click="removeCurrentImage"
+                >
+                  Remove image
+                </button>
+              </div>
               <input
                 id="image"
                 v-model="form.imageUrl"
@@ -532,6 +539,14 @@ async function submitRecipe() {
 
 .image-url-field .form-label {
   display: block;
+  margin-bottom: 0.45rem;
+}
+
+.image-url-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 0.45rem;
 }
 

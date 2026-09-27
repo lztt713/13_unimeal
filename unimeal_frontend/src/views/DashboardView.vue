@@ -83,7 +83,7 @@ async function replaceDinner() {
     plannedDate: today,
     mealType: 'Dinner',
     recipeId: Number(selectedRecipeId.value),
-    plannedServings: 2,
+    plannedServings: 1,
   })
   // 保存成功后，重新拉一次仪表盘数据（页面上的晚餐卡片会自动更新）
   data.value = await api.getDashboard()
