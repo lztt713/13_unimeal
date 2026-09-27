@@ -33,6 +33,19 @@ recipe_dietary_tags = Table(
 )
 
 
+recipe_equipment = Table(
+    "recipe_equipment",
+    Base.metadata,
+    Column("recipe_id", BigInteger, ForeignKey("recipes.recipe_id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "equipment_id",
+        SmallInteger,
+        ForeignKey("equipment.equipment_id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
+
 saved_recipes = Table(
     "saved_recipes",
     Base.metadata,
@@ -170,6 +183,18 @@ class Allergy(Base):
     users = relationship("User", secondary=user_allergies, back_populates="allergies")
 
 
+class Equipment(Base):
+    """Controlled equipment option attached to recipes."""
+
+    __tablename__ = "equipment"
+
+    equipment_id = Column(SmallInteger, primary_key=True, autoincrement=True)
+    equipment_name = Column(String(80), nullable=False, unique=True)
+    description = Column(String(255))
+
+    recipes = relationship("Recipe", secondary=recipe_equipment, back_populates="required_equipment")
+
+
 class IngredientCategory(Base):
     """Ingredient category lookup table."""
 
@@ -241,6 +266,9 @@ class Recipe(Base):
     author = relationship("User")
     cuisine = relationship("Cuisine", back_populates="recipes")
     dietary_tags = relationship("DietaryTag", secondary=recipe_dietary_tags, back_populates="recipes")
+    required_equipment = relationship(
+        "Equipment", secondary=recipe_equipment, back_populates="recipes", order_by="Equipment.equipment_name"
+    )
     recipe_ingredients = relationship(
         "RecipeIngredient",
         back_populates="recipe",

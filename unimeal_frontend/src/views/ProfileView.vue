@@ -5,7 +5,6 @@ import { api } from '../services/api'
 const profile = ref(null)
 const saved = ref(false)
 const allergyOptions = ref([])
-const selectedAllergy = ref('No known allergies')
 const allRecipes = ref([])   // 所有食谱（用于动态提取菜系）
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 // 菜系：从食谱数据动态提取
@@ -23,20 +22,17 @@ onMounted(async () => {
     ...userData,
     allergies: userData.allergies || [],
   }
-  selectedAllergy.value = userData.allergies?.[0] || 'No known allergies'
   allRecipes.value = recipesData
   allergyOptions.value = availableAllergies
 })
 
 // ----------save profile (students only)
 async function saveProfile() {
-  const allergies = selectedAllergy.value === 'No known allergies' ? [] : [selectedAllergy.value]
-  const updatedProfile = await api.updateProfile({ ...profile.value, allergies })
+  const updatedProfile = await api.updateProfile(profile.value)
   profile.value = {
     ...updatedProfile,
     allergies: updatedProfile.allergies || [],
   }
-  selectedAllergy.value = updatedProfile.allergies?.[0] || 'No known allergies'
   // Show "saved" toast, auto-hide after 2.5s
   saved.value = true
   setTimeout(() => {
@@ -99,20 +95,17 @@ async function saveProfile() {
                     <option>No kitchen</option>
                   </select>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Allergies</label>
-                  <select v-model="selectedAllergy" class="form-select">
-                    <option value="No known allergies">No known allergies</option>
-                    <option
-                      v-for="allergy in allergyOptions.filter((item) => item.name !== 'No known allergies')"
-                      :key="allergy.id"
-                      :value="allergy.name"
-                    >
-                      {{ allergy.name }}
-                    </option>
-                  </select>
-                </div>
               </div>
+              <fieldset class="mt-4">
+                <legend class="form-label mb-2">Allergies</legend>
+                <div v-if="allergyOptions.length" class="d-flex flex-wrap gap-2">
+                  <label v-for="allergy in allergyOptions" :key="allergy.id" class="choice-pill">
+                    <input v-model="profile.allergies" type="checkbox" :value="allergy.name" />
+                    {{ allergy.name }}
+                  </label>
+                </div>
+                <p v-else class="text-secondary mb-0">No allergen options are configured.</p>
+              </fieldset>
               <fieldset class="mt-4">
                 <legend class="form-label mb-2">Dietary preferences</legend>
                 <div class="d-flex flex-wrap gap-2">

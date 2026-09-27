@@ -22,7 +22,7 @@ if (Get-Command mysql -ErrorAction SilentlyContinue) { $mysql = "mysql" }
 elseif (Test-Path "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe") { $mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" }
 
 if (-not $mysql) {
-    Write-Warning "mysql client not found. Run database/migrations/20260919_profile_and_notifications.sql manually."
+    Write-Warning "mysql client not found. Apply the SQL files in database/migrations manually."
 } else {
     Write-Host "[1/3] Apply database scripts (schema + sample + ZZH migration)" -ForegroundColor Green
     $pw = Read-Password "MySQL root password"
@@ -32,7 +32,8 @@ if (-not $mysql) {
         "$root\database\master_schema.sql",
         "$root\database\sample_data.sql",
         "$root\database\migrations\20260919_profile_and_notifications.sql",
-        "$root\database\migrations\20260920_demo_recipe_data.sql"
+        "$root\database\migrations\20260920_demo_recipe_data.sql",
+        "$root\database\migrations\20260923_frontend_equipment_and_allergens.sql"
     )
     foreach ($sql in $sqlFiles) {
         Get-Content -Raw $sql | & $mysql "-uroot" "-p$pw"

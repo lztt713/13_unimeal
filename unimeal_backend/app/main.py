@@ -4,9 +4,12 @@ Run with:
     uvicorn app.main:app --reload
 """
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
@@ -30,6 +33,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+recipe_image_directory = Path(__file__).resolve().parents[1] / "uploads" / "recipe-images"
+recipe_image_directory.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/api/uploads/recipe-images",
+    StaticFiles(directory=recipe_image_directory),
+    name="recipe-images",
 )
 
 app.include_router(auth.router)
