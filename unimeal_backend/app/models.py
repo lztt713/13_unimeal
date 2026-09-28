@@ -19,6 +19,22 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 
+user_dietary_preferences = Table(
+    "user_dietary_preferences",
+    Base.metadata,
+    Column(
+        "user_id",
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "dietary_tag_id",
+        SmallInteger,
+        ForeignKey("dietary_tags.dietary_tag_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 recipe_dietary_tags = Table(
     "recipe_dietary_tags",
@@ -54,20 +70,6 @@ saved_recipes = Table(
     Column("saved_at", DateTime),
 )
 
-
-# ZZH: 用户饮食偏好 / 过敏原关联表（对应胡启辰 master_schema 里的两张多对多表）。
-# Many-to-many junction tables for user dietary preferences and allergies.
-user_dietary_preferences = Table(
-    "user_dietary_preferences",
-    Base.metadata,
-    Column("user_id", BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True),
-    Column(
-        "dietary_tag_id",
-        SmallInteger,
-        ForeignKey("dietary_tags.dietary_tag_id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-)
 
 
 user_allergies = Table(
@@ -435,7 +437,7 @@ class ShoppingListItem(Base):
 class RecipeComment(Base):
     """A user's comment on a recipe.
 
-    对应 master_schema 的 recipe_comments 表（is_hidden 标记被管理员隐藏的评论）。
+     Maps the recipe_comments table. is_hidden marks comments hidden by an administrator.
     """
 
     __tablename__ = "recipe_comments"
@@ -455,7 +457,7 @@ class RecipeComment(Base):
 class Notification(Base):
     """A user notification (meal plan, shopping list, recipe update or system).
 
-    dedupe_key 用于去重（本模块新增，见迁移脚本）；read_at 为空表示未读。
+    dedupe_key identifies this notification; read_at is null until the user reads it.
     """
 
     __tablename__ = "notifications"
@@ -476,7 +478,7 @@ class Notification(Base):
 class ContentReport(Base):
     """A report against one recipe or one comment, reviewed by an administrator.
 
-    recipe_id 和 recipe_comment_id 二选一（数据库有 CHECK 约束保证）。
+    Composite foreign key linking a report to a specific recipe comment.
     """
 
     __tablename__ = "content_reports"

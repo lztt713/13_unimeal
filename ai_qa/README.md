@@ -10,6 +10,8 @@
 1. Change AI display to Gemini
 2. Change the layout
 
+* ### unimeal_backend\app\models.py
+
 
 ## New file
 * ### unimeal_backend\app\routers\aiHelper.py
