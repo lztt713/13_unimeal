@@ -195,13 +195,20 @@ async function submitComment() {
                   <span class="recipe-rating">{{ recipe.rating }} / 5</span
                   ><span class="text-secondary small">from {{ recipe.reviewCount }} ratings</span>
                 </div>
-                <!--  Report recipe / Save -->
+                <!-- Student's main next step is to put this recipe into a meal plan. -->
                 <div class="d-flex gap-2">
-                  <button class="btn btn-outline-secondary btn-sm" @click="openReportRecipe">
-                    Report recipe
-                  </button>
+                  <RouterLink
+                    v-if="user?.role === 'student'"
+                    class="btn btn-primary rounded-pill btn-sm"
+                    :to="{ path: '/calendar', query: { recipe: recipe.id } }"
+                  >
+                    Plan this recipe
+                  </RouterLink>
                   <button v-if="user?.role === 'student'" class="btn btn-outline-primary rounded-pill btn-sm" @click="toggleSaved">
                     {{ saved ? 'Saved to favourites' : 'Save recipe' }}
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" @click="openReportRecipe">
+                    Report recipe
                   </button>
                 </div>
               </div>

@@ -29,31 +29,82 @@ const featuredMeals = [
   <section class="home-page">
     <div class="container py-5">
       <div class="row align-items-center g-4 py-lg-4">
-        <div class="col-lg-7">
+        <div class="col-lg-6 order-2">
           <h1 class="display-5 fw-bold">Plan affordable meals for student life.</h1>
           <p class="lead text-secondary mt-3">
             UniMeal helps students find recipes, plan meals for the week, make a shopping list, and
             keep track of a food budget.
           </p>
-          <!-- Three buttons: all lead to register or login -->
+          <!-- Clear first-time choices: create an account or return to an existing one. -->
           <div class="d-flex flex-wrap gap-2 mt-4">
-            <RouterLink class="btn btn-primary" to="/register">Create an account</RouterLink
-            ><RouterLink class="btn btn-outline-primary" to="/login">Log in</RouterLink
-            ><RouterLink class="btn btn-outline-secondary" to="/login"
-              >Browse recipes after logging in</RouterLink
-            >
+            <RouterLink class="btn btn-primary rounded-pill px-4" to="/register">Get started</RouterLink
+            ><RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/login">I already have an account</RouterLink>
           </div>
         </div>
-        <!-- Right image column: takes 5/12 on large screens -->
-        <div class="col-lg-5">
+        <!-- Lead with a visual on small screens and desktop alike. -->
+        <div class="col-lg-6 order-1">
           <img
-            class="img-fluid rounded border"
+            class="hero-image"
             src="https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80"
             alt="Fresh ingredients for a meal"
           />
         </div>
       </div>
 
+
+        <section class="mt-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+          <div>
+            <h2 class="h3 fw-bold mb-1">Featured meal ideas</h2>
+            <p class="text-secondary mb-0">
+              A few affordable examples of what students can explore after logging in.
+            </p>
+          </div>
+          <RouterLink class="btn btn-outline-primary" to="/login">Log in to explore</RouterLink>
+        </div>
+        <div class="row g-3">
+           <!-- Loop through featuredMeals array to render 3 recipe cards -->
+          <div v-for="meal in featuredMeals" :key="meal.title" class="col-md-4">
+            <article class="featured-meal h-100">
+              <img :src="meal.imageUrl" :alt="meal.title" />
+              <div class="p-3">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <h3 class="h5 mb-0">{{ meal.title }}</h3>
+                  <span class="small text-secondary">{{ meal.cookTime }} min</span>
+                </div>
+                <p class="mb-0 mt-2 text-secondary">{{ meal.note }}</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="how-it-works mt-5">
+        <div class="text-center mx-auto how-it-works-heading">
+          <p class="eyebrow">Made for student life</p>
+          <h2 class="h3 fw-bold">A simple path from preference to plate.</h2>
+          <p class="text-secondary mb-0">Set your needs once, then let each page guide your next step.</p>
+        </div>
+        <div class="row g-3 mt-2">
+          <div class="col-md-4">
+            <article class="journey-step h-100">
+              <span>1</span><h3 class="h5">Tell us about you</h3>
+              <p class="mb-0">Set your budget, dietary needs and kitchen access.</p>
+            </article>
+          </div>
+          <div class="col-md-4">
+            <article class="journey-step h-100">
+              <span>2</span><h3 class="h5">Plan your week</h3>
+              <p class="mb-0">Choose recipes and add them to the days you want to cook.</p>
+            </article>
+          </div>
+          <div class="col-md-4">
+            <article class="journey-step h-100">
+              <span>3</span><h3 class="h5">Shop with clarity</h3>
+              <p class="mb-0">Use one combined list and see what is still left to buy.</p>
+            </article>
+          </div>
+        </div>
+      </section>
       <!-- Section 2: Four feature cards (whole card clickable → /login) -->
       <section class="mt-5">
         <h2 class="h3 fw-bold">What can you do with UniMeal?</h2>
@@ -124,32 +175,7 @@ const featuredMeals = [
         </div>
       </section>
 
-      <section class="mt-5">
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-          <div>
-            <h2 class="h3 fw-bold mb-1">Featured meal ideas</h2>
-            <p class="text-secondary mb-0">
-              A few affordable examples of what students can explore after logging in.
-            </p>
-          </div>
-          <RouterLink class="btn btn-outline-primary" to="/login">Log in to explore</RouterLink>
-        </div>
-        <div class="row g-3">
-           <!-- Loop through featuredMeals array to render 3 recipe cards -->
-          <div v-for="meal in featuredMeals" :key="meal.title" class="col-md-4">
-            <article class="featured-meal h-100">
-              <img :src="meal.imageUrl" :alt="meal.title" />
-              <div class="p-3">
-                <div class="d-flex justify-content-between align-items-center gap-2">
-                  <h3 class="h5 mb-0">{{ meal.title }}</h3>
-                  <span class="small text-secondary">{{ meal.cookTime }} min</span>
-                </div>
-                <p class="mb-0 mt-2 text-secondary">{{ meal.note }}</p>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
+
 
         <!--Role cards (matching the 3 user roles in the brief) -->
       <section class="mt-5 border-top pt-4">
@@ -202,6 +228,42 @@ const featuredMeals = [
   max-height: 20rem;
   width: 100%;
   object-fit: cover;
+}
+.home-page .hero-image {
+  display: block;
+  width: 100%;
+  min-height: 15rem;
+  max-height: 22rem;
+  border: 1px solid var(--um-line);
+  border-radius: 1rem;
+  object-fit: cover;
+}
+.how-it-works-heading {
+  max-width: 42rem;
+}
+.journey-step {
+  padding: 1.4rem;
+  border: 1px solid var(--um-line);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.journey-step span {
+  display: inline-flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--um-green);
+  font-weight: 800;
+}
+.journey-step h3 {
+  color: var(--um-ink);
+}
+.journey-step p {
+  color: var(--um-muted);
 }
 .card {
   /* ===== 通用卡片：浅灰绿边框 + 圆角 + 无阴影 ===== */

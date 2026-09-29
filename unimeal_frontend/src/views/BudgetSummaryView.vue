@@ -69,6 +69,8 @@ const budgetMessage = computed(() => {
 // ---------- 生命周期：加载数据 + 初始化图表 /
 onMounted(async () => {
   summary.value = await api.getBudgetSummary()
+  // A $0 chart provides no useful comparison; the template shows a clearer empty state instead.
+  if (!summary.value.actualSpent) return
   // Wait for Vue to finish DOM update, ensure <canvas> is rendered
   await nextTick()
    // Initialize Chart.js bar chart on canvas
@@ -137,7 +139,7 @@ onBeforeUnmount(() => chart?.destroy())
             <section class="surface-card p-4 p-md-5 chart-card h-100">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <h2 class="budget-heading">Spent vs budget</h2>
+                  <h2 class="budget-heading">Actual spending vs budget</h2>
                   <!--  Show date range -->
                   <p class="text-secondary mb-0">
                     {{ summary.period.startDate }} to {{ summary.period.endDate }}
@@ -146,8 +148,13 @@ onBeforeUnmount(() => chart?.destroy())
                 <span class="soft-badge">Current week</span>
               </div>
               <!-- Chart.js canvas -->
-              <div class="chart-wrap mt-4">
+              <div v-if="summary.actualSpent > 0" class="chart-wrap mt-4">
                 <canvas ref="chartCanvas"></canvas>
+              </div>
+              <div v-else class="budget-empty mt-4">
+                <h3 class="h5 fw-bold">No purchases recorded this week yet.</h3>
+                <p class="text-secondary mb-3">Your spending appears here after you tick off items in your shopping list.</p>
+                <RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/shopping-list">Open shopping list</RouterLink>
               </div>
             </section>
           </div>
@@ -165,12 +172,13 @@ onBeforeUnmount(() => chart?.destroy())
                 Weekly budget: ${{ summary.period.budgetAmount.toFixed(2) }}.
               </p>
               <RouterLink v-else to="/profile">Set your weekly budget in your profile</RouterLink>
+              <p class="budget-explanation">Only items marked as purchased in your shopping list count here.</p>
               <div v-if="hasBudget" class="progress mt-4">
                 <div class="progress-bar" :style="{ width: `${usedPercent}%` }"></div>
               </div>
               <div class="d-flex justify-content-between mt-2 small fw-semibold">
                 <span v-if="hasBudget">{{ usedPercent.toFixed(0) }}% used</span
-                ><span>${{ summary.actualSpent.toFixed(2) }} spent</span>
+                ><span>${{ summary.actualSpent.toFixed(2) }} actual spent</span>
               </div>
               <!--  Tip box -->
               <div v-if="budgetMessage" class="budget-tip mt-4" :class="budgetMessage.type">
@@ -182,7 +190,7 @@ onBeforeUnmount(() => chart?.destroy())
             </section>
           </div>
         </div>
-        <section class="surface-card p-4 p-md-5 mt-4">
+        <section v-if="summary.actualSpent > 0" class="surface-card p-4 p-md-5 mt-4">
           <h2 class="budget-heading">Weekly spending by category</h2>
 
           <div v-for="category in summary.categories" :key="category.label" class="breakdown-row">
@@ -212,6 +220,22 @@ onBeforeUnmount(() => chart?.destroy())
 .chart-wrap {
   position: relative;
   height: 19rem;
+}
+.budget-empty {
+  display: flex;
+  min-height: 19rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem;
+  border-radius: 0.6rem;
+  background: var(--um-green-light);
+}
+.budget-explanation {
+  margin-bottom: 0;
+  color: var(--um-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 .remaining-amount {
   color: var(--um-green);

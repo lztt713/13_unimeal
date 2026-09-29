@@ -18,6 +18,7 @@ const budgetPercent = computed(() =>
 const hasBudget = computed(() => data.value?.weeklyBudget > 0)
 const remaining = computed(() => (hasBudget.value ? data.value.weeklyBudget - data.value.spent : 0))
 const overBudget = computed(() => hasBudget.value && remaining.value < 0)
+const isFirstPlan = computed(() => !data.value?.tonight && !(data.value?.favourites?.length))
 // 对应页面：底部"Plan and manage"那 6 张卡片
 const quickLinks = [
   {
@@ -118,8 +119,18 @@ async function replaceDinner() {
       <div v-else-if="error" class="empty-state p-5">
         We could not load your dashboard. Please try again.
       </div>
-       <!-- ---------- 正常内容（数据加载成功后才渲染） ---------- -->
+      <!-- ---------- 正常内容（数据加载成功后才渲染） ---------- -->
       <template v-else>
+        <section v-if="isFirstPlan" class="getting-started surface-card p-4 p-md-5 mb-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+              <p class="eyebrow">Getting started</p>
+              <h2 class="section-title">Plan your first week in three simple steps.</h2>
+              <p class="text-secondary mb-0 mt-2">Choose a recipe, add it to your calendar, then open your combined shopping list.</p>
+            </div>
+            <RouterLink class="btn btn-primary rounded-pill px-4 flex-shrink-0" to="/calendar">Plan my week</RouterLink>
+          </div>
+        </section>
         <!-- Row 1: Dinner card + Budget card -->
         <div class="row g-4 align-items-stretch">
           <div class="col-lg-8">
@@ -288,6 +299,9 @@ async function replaceDinner() {
 .dinner-card {
   min-height: 22rem;
   border-top: 3px solid var(--um-green);/* 顶部绿色装饰线 */
+}
+.getting-started {
+  border-left: 4px solid var(--um-green);
 }
 
 .dinner-image-wrap {
