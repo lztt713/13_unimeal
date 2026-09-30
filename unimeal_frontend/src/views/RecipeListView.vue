@@ -165,6 +165,7 @@ onMounted(async () => {
               <option value="all">Any difficulty</option>
               <option>Easy</option>
               <option>Medium</option>
+              <option>Hard</option>
             </select>
             <!--  Filter 4: Dietary preference -->
             <label class="form-label mt-4">Dietary preference</label>

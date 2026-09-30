@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
 
 const plan = ref({ entries: [] })
@@ -11,6 +12,16 @@ const activeSlot = ref(null)   // 当前打开的格子（day + mealType + entry
 const selectedRecipeId = ref('')
 const plannedServings = ref(1)  // 这一餐做几人份，默认 1
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner']
+const isEmptyPlan = computed(() => !plan.value.entries.length)
+const route = useRoute()
+const router = useRouter()
+const requestedRecipeId = computed(() => {
+  const value = Number(route.query.recipe)
+  return Number.isInteger(value) && value > 0 ? value : null
+})
+const recipeToPlan = computed(() =>
+  recipes.value.find((recipe) => recipe.id === requestedRecipeId.value) || null,
+)
 // Generate 7 consecutive days starting from plan.weekStartDate
 const weekDays = computed(() => {
   // 把 "2026-09-18" 拆成 [2026, 9, 18] / Split date string into numbers
@@ -37,7 +48,7 @@ async function loadMealPlan(weekStart) {
   plan.value = await api.getMealPlan(weekStart)// 传周起始日期
   selectedWeekStart.value = plan.value.weekStartDate
 }
-
+// 把 Date 对象转成 'YYYY-MM-DD' 字符串。
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -77,7 +88,8 @@ function recipeFor(entry) {
 function openSlot(day, mealType) {
   const entry = entryFor(day, mealType)  // 先查这个格子有没有安排
   activeSlot.value = { day, mealType, entry }  // 记录当前操作的格子
-  selectedRecipeId.value = entry?.recipeId || '' // 已有安排则预选食谱
+  // When arriving from a recipe detail page, preselect that recipe in the first empty slot.
+  selectedRecipeId.value = entry?.recipeId || recipeToPlan.value?.id || ''
   plannedServings.value = entry?.plannedServings || 1   // 已有安排则读取份数，否则默认 1
 }
 // ---------- 保存安排
@@ -91,6 +103,10 @@ async function saveSlot() {
     plannedServings: plannedServings.value,  // 用户指定的份数
   })
   activeSlot.value = null
+  if (recipeToPlan.value) await router.replace('/calendar')
+}
+async function clearRecipeToPlan() {
+  await router.replace('/calendar')
 }
 // ---------- 删除安排
 async function removeSlot() {
@@ -125,8 +141,21 @@ async function removeSlot() {
       <div v-else-if="loadError" class="empty-state p-5">
         We could not load your meal plan. Please try again.
       </div>
-      <template v-else
-        ><div class="surface-card calendar-wrap">
+      <template v-else>
+        <section v-if="recipeToPlan" class="calendar-tip mb-4">
+          <p class="eyebrow mb-1">Ready to plan</p>
+          <strong>{{ recipeToPlan.title }} is selected.</strong>
+          <span>Click any + to choose its date and meal type.</span>
+          <button class="btn btn-outline-primary btn-sm rounded-pill" type="button" @click="clearRecipeToPlan">
+            Choose a different recipe
+          </button>
+        </section>
+        <section v-else-if="isEmptyPlan" class="calendar-tip mb-4">
+          <p class="eyebrow mb-1">Your first meal plan</p>
+          <strong>Click a +, choose a recipe and servings, then save.</strong>
+          <span>Your shopping list updates automatically after you add meals.</span>
+        </section>
+        <div class="surface-card calendar-wrap">
           <div class="calendar-grid">
             <!-- 左上角空白格 -->
             <div class="calendar-corner"></div>
@@ -240,6 +269,23 @@ async function removeSlot() {
 /*  Calendar wrapper: horizontal scroll ===== */
 .calendar-wrap {
   overflow-x: auto;
+}
+.calendar-tip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  padding: 1rem 1.25rem;
+  border-left: 4px solid var(--um-green);
+  border-radius: 0.5rem;
+  background: var(--um-green-light);
+  color: var(--um-ink);
+}
+.calendar-tip .eyebrow {
+  width: 100%;
+}
+.calendar-tip span {
+  color: var(--um-muted);
 }
 /*  Col 1: 6.5rem */
 /*  Cols 2-8: 7 cols, min 8.5rem */

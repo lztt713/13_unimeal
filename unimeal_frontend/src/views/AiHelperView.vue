@@ -99,10 +99,15 @@ function useExample(example) {
             </div>
             <span class="soft-badge align-self-md-start">{{ result.mode === 'live' ? 'Gemini' : 'Database fallback' }}</span>
           </div>
-          <div class="row g-4 mt-2">
+          <div v-if="result.recipes.length" class="row g-4 mt-2">
             <div v-for="recipe in result.recipes" :key="recipe.id" class="col-md-6 col-xl-4">
               <RecipeCard :recipe="recipe" />
             </div>
+          </div>
+          <div v-else class="ai-no-results mt-4">
+            <h3 class="h5 fw-bold">No matching recipes yet.</h3>
+            <p class="text-secondary mb-3">Try a broader request, or adjust the saved preferences that are filtering your results.</p>
+            <RouterLink class="btn btn-outline-primary rounded-pill px-4" to="/profile">Edit preferences</RouterLink>
           </div>
         </article>
         <article class="ai-caution surface-card p-4 mt-4">
@@ -150,6 +155,11 @@ function useExample(example) {
 .ai-content {
   max-width: 72rem;
   margin-inline: auto;
+}
+.ai-no-results {
+  padding: 1.25rem;
+  border-radius: 0.6rem;
+  background: var(--um-green-light);
 }
 .ai-heading {
   color: var(--um-ink);

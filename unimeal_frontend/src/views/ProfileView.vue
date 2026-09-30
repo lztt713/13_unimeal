@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
 
 const profile = ref(null)
@@ -7,6 +8,9 @@ const saved = ref(false)
 const allergyOptions = ref([])
 const allRecipes = ref([])   // 所有食谱（用于动态提取菜系）
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
+const route = useRoute()
+const router = useRouter()
+const isOnboarding = computed(() => route.query.onboarding === '1')
 // 菜系：从食谱数据动态提取
 const cuisineOptions = computed(() =>
   [...new Set(allRecipes.value.map((recipe) => recipe.cuisine))].sort(),
@@ -33,6 +37,10 @@ async function saveProfile() {
     ...updatedProfile,
     allergies: updatedProfile.allergies || [],
   }
+  if (isOnboarding.value && updatedProfile.role === 'student') {
+    await router.push('/dashboard')
+    return
+  }
   // Show "saved" toast, auto-hide after 2.5s
   saved.value = true
   setTimeout(() => {
@@ -55,6 +63,14 @@ async function saveProfile() {
             <p class="page-subtitle mt-1">{{ profile.email }}</p>
           </div>
         </div>
+        <section v-if="isOnboarding && profile.role === 'student'" class="onboarding-note mt-4">
+          <p class="eyebrow mb-1">Step 1 of 2</p>
+          <h2 class="profile-title mb-2">Set up your meal preferences</h2>
+          <p class="mb-0">
+            Your budget, dietary needs and kitchen access help UniMeal make safer, more useful suggestions.
+            You can change these any time.
+          </p>
+        </section>
         <form class="row g-4 mt-1" @submit.prevent="saveProfile">
           <!-- Left column width dynamic: 8 for students, 12 for others -->
           <div :class="profile.role === 'student' ? 'col-lg-8' : 'col-lg-12'">
@@ -158,7 +174,9 @@ async function saveProfile() {
               <p class="text-secondary">
                 Your preferences will be used for future meal recommendations and smart searches.
               </p>
-              <button class="btn btn-primary rounded-pill w-100" type="submit">Save profile</button>
+              <button class="btn btn-primary rounded-pill w-100" type="submit">
+                {{ isOnboarding ? 'Save and continue' : 'Save profile' }}
+              </button>
               <p v-if="saved" class="saved-message mb-0 mt-3">Your profile was updated.</p>
             </section>
           </aside>
@@ -228,6 +246,13 @@ async function saveProfile() {
 }
 .profile-side {
   top: 6rem;
+}
+.onboarding-note {
+  padding: 1.25rem 1.5rem;
+  border-left: 4px solid var(--um-green);
+  border-radius: 0.5rem;
+  background: var(--um-green-light);
+  color: var(--um-ink);
 }
 .saved-message {
   color: var(--um-green);

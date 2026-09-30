@@ -34,12 +34,17 @@ async function submit() {
         : user.role === 'contributor'
           ? '/my-recipes'
           : '/dashboard'
-// Redirect: prioritize query.redirect from route guard (e.g., originally wanted /calendar)
-    router.push(
-      typeof router.currentRoute.value.query.redirect === 'string'
-        ? router.currentRoute.value.query.redirect
-        : defaultRoute,
-    )
+    // A new student needs to set the preferences that drive recommendations before planning.
+    // Existing users still return to their requested page or normal dashboard.
+    if (isRegister.value && user.role === 'student') {
+      router.push({ path: '/profile', query: { onboarding: '1' } })
+    } else {
+      router.push(
+        typeof router.currentRoute.value.query.redirect === 'string'
+          ? router.currentRoute.value.query.redirect
+          : defaultRoute,
+      )
+    }
   } catch (err) {
     error.value = err.message
   } finally {
