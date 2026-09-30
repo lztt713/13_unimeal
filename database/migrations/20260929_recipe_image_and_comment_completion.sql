@@ -75,7 +75,12 @@ SELECT recipe.recipe_id, reviewer.user_id, seed.comment_text, FALSE
 FROM new_recipe_comment_seed seed
 JOIN recipes recipe ON recipe.title = seed.recipe_title
 JOIN users reviewer ON reviewer.email = seed.reviewer_email
-WHERE NOT EXISTS (
+WHERE NOT (seed.recipe_title = 'Cumin Chickpea Rice Skillet'
+           AND (recipe.description = 'Dry-fried cumin chickpea rice with broccoli and carrot for a colourful vegetable skillet.'
+             OR EXISTS (SELECT 1 FROM recipe_ingredients revised_line
+                        JOIN ingredients revised_ingredient ON revised_ingredient.ingredient_id = revised_line.ingredient_id
+                        WHERE revised_line.recipe_id = recipe.recipe_id AND revised_ingredient.ingredient_name = 'Broccoli')))
+  AND NOT EXISTS (
   SELECT 1 FROM recipe_comments existing
   WHERE existing.recipe_id = recipe.recipe_id
     AND existing.user_id = reviewer.user_id

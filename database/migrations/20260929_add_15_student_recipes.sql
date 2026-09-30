@@ -48,7 +48,17 @@ FROM new_recipe_seed seed
 JOIN users author ON author.email = 'yuki@qq.com'
 JOIN roles role_row ON role_row.role_id = author.role_id AND role_row.role_name = 'contributor'
 JOIN cuisines cuisine ON cuisine.cuisine_name = seed.cuisine_name
-WHERE NOT EXISTS (SELECT 1 FROM recipes existing WHERE existing.title = seed.title);
+WHERE NOT EXISTS (SELECT 1 FROM recipes existing WHERE existing.title = seed.title)
+  -- Later revisions rename these demo recipes in place; a rerun must not add old versions.
+  AND NOT EXISTS (
+    SELECT 1 FROM recipes revised
+    WHERE revised.author_user_id = author.user_id
+      AND ((seed.title = 'Tomato Egg Pasta' AND revised.title = 'Broccoli Egg Frittata')
+        OR (seed.title = 'Creamy Chicken Mushroom Pasta' AND revised.title = 'Chicken Mushroom Wraps')
+        OR (seed.title = 'Garlic Mushroom Rice Skillet' AND revised.title = 'Creamy Mushroom Soup')
+        OR (seed.title = 'Garlic Tomato Pasta' AND revised.title = 'Carrot Hummus Pasta')
+        OR (seed.title = 'Mushroom Lentil Risotto' AND revised.title = 'Lentil Carrot Patties'))
+  );
 
 DROP TEMPORARY TABLE IF EXISTS new_recipe_ingredient_seed;
 CREATE TEMPORARY TABLE new_recipe_ingredient_seed (
@@ -185,7 +195,12 @@ FROM new_recipe_ingredient_seed seed
 JOIN recipes recipe ON recipe.title = seed.recipe_title
 JOIN ingredients ingredient ON ingredient.ingredient_name = seed.ingredient_name
 JOIN measurement_units unit_row ON unit_row.unit_symbol = seed.unit_symbol
-WHERE NOT EXISTS (
+WHERE NOT (seed.recipe_title = 'Cumin Chickpea Rice Skillet'
+           AND (recipe.description = 'Dry-fried cumin chickpea rice with broccoli and carrot for a colourful vegetable skillet.'
+             OR EXISTS (SELECT 1 FROM recipe_ingredients revised_line
+                        JOIN ingredients revised_ingredient ON revised_ingredient.ingredient_id = revised_line.ingredient_id
+                        WHERE revised_line.recipe_id = recipe.recipe_id AND revised_ingredient.ingredient_name = 'Broccoli')))
+  AND NOT EXISTS (
   SELECT 1 FROM recipe_ingredients existing
   WHERE existing.recipe_id = recipe.recipe_id
     AND existing.ingredient_id = ingredient.ingredient_id

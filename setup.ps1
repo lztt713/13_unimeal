@@ -24,7 +24,7 @@ elseif (Test-Path "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe") { $my
 if (-not $mysql) {
     Write-Warning "mysql client not found. Apply the SQL files in database/migrations manually."
 } else {
-    Write-Host "[1/3] Apply database scripts (schema + sample + ZZH migration)" -ForegroundColor Green
+    Write-Host "[1/3] Apply database scripts (schema + sample + current migrations)" -ForegroundColor Green
     $pw = Read-Password "MySQL root password"
     if (-not $pw) { Write-Host "No password entered. Aborted." -ForegroundColor Red; exit 1 }
 
@@ -34,7 +34,10 @@ if (-not $mysql) {
         "$root\database\migrations\20260919_profile_and_notifications.sql",
         "$root\database\migrations\20260920_demo_recipe_data.sql",
         "$root\database\migrations\20260923_frontend_equipment_and_allergens.sql",
-        "$root\database\migrations\20260927_allergy_warning_data.sql"
+        "$root\database\migrations\20260927_allergy_warning_data.sql",
+        "$root\database\migrations\20260929_add_15_student_recipes.sql",
+        "$root\database\migrations\20260929_recipe_image_and_comment_completion.sql",
+        "$root\database\migrations\20260930_distinct_student_recipes.sql"
     )
     foreach ($sql in $sqlFiles) {
         Get-Content -Raw $sql | & $mysql "-uroot" "-p$pw"
