@@ -173,6 +173,7 @@ class RecipeSearchParams(BaseModel):
     cuisine: str | None = None
     difficulty: str | None = None
     price_max: float | None = None
+    max_minutes: int | None = None
     dietary_tags: list[str] | None = None
     sort_by: str | None = None
     sort_order: str = "asc"
@@ -277,6 +278,7 @@ class PersistedShoppingListResponse(BaseModel):
     status: str = "active"
     items: list[PersistedShoppingItemResponse] = Field(default_factory=list)
     total_estimated_cost: float = Field(default=0.0, alias="totalEstimatedCost")
+    savings_tips: list[str] = Field(default_factory=list, alias="savingsTips")
 
 
 class ShoppingPurchaseWrite(BaseModel):
@@ -312,8 +314,8 @@ class BudgetSummaryResponse(BaseModel):
     categories: list[BudgetCategoryResponse] = Field(default_factory=list)
 
 
-# ZZH: 认证/通知/举报/管理员相关的请求响应模型。字段名用 snake_case，
-# 通过 alias 输出 camelCase，与前端 src/services/api.js 约定一致。
+# ZZH: 认证/通知/举报/管理员相关的请求响应模型。字段名�? snake_case�?
+# 通过 alias 输出 camelCase，与前端 src/services/api.js 约定一致�?
 # Request/response schemas for auth, notifications, reports and admin. Field
 # names are snake_case with camelCase aliases matching the frontend contract.
 class UserResponse(BaseModel):

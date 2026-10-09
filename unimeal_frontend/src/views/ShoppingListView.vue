@@ -167,6 +167,13 @@ async function toggle(item) {
               </div>
               <p class="summary-help mb-0">The remaining amount updates as you tick off items.</p>
             </section>
+            <section v-if="list.savingsTips?.length" class="surface-card p-4 mt-4 savings-card">
+              <p class="eyebrow">Smart optimisation</p>
+              <h2 class="list-heading">Cost-saving ideas</h2>
+              <ul class="savings-list mb-0">
+                <li v-for="tip in list.savingsTips" :key="tip">{{ tip }}</li>
+              </ul>
+            </section>
           </aside>
         </div></template>
          <!--Empty: no meal plan -->
@@ -312,6 +319,19 @@ async function toggle(item) {
   color: var(--um-muted);
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.savings-card {
+  border-left: 4px solid var(--um-green);
+}
+
+.savings-list {
+  padding-left: 1.2rem;
+  color: var(--um-muted);
+}
+
+.savings-list li + li {
+  margin-top: 0.75rem;
 }
 
 @media (max-width: 575.98px) {

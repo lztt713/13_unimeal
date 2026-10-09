@@ -319,6 +319,79 @@ def planning_reminder_candidates(
     return reminders
 
 
+def _shopping_saving_tips(
+    plan: MealPlan | None,
+    items: list[ShoppingListItem],
+) -> list[str]:
+    """Suggest low-cost choices from shared ingredients in the planned meals."""
+
+    if plan is None or not plan.entries:
+        return []
+
+    items_by_ingredient = {
+        int(item.ingredient_id): item
+        for item in items
+        if item.ingredient_id is not None
+    }
+    ingredient_meal_counts: dict[int, int] = defaultdict(int)
+    recipe_costs: list[tuple[float, str]] = []
+
+    for entry in plan.entries:
+        recipe = entry.recipe
+        if recipe is None:
+            continue
+
+        used_in_this_meal: set[int] = set()
+        ingredient_cost = Decimal("0")
+        for recipe_item in recipe.recipe_ingredients:
+            ingredient_id = int(recipe_item.ingredient_id)
+            if ingredient_id not in used_in_this_meal:
+                ingredient_meal_counts[ingredient_id] += 1
+                used_in_this_meal.add(ingredient_id)
+            unit_cost = Decimal(recipe_item.ingredient.estimated_unit_cost or 0)
+            ingredient_cost += Decimal(recipe_item.quantity) * unit_cost
+
+        total_cost = ingredient_cost or Decimal(recipe.estimated_cost or 0)
+        recipe_costs.append(
+            (float(total_cost / Decimal(recipe.servings or 1)), recipe.title)
+        )
+
+    tips: list[str] = []
+    shared_ingredients = sorted(
+        (
+            (count, ingredient_id)
+            for ingredient_id, count in ingredient_meal_counts.items()
+            if count >= 2 and ingredient_id in items_by_ingredient
+        ),
+        reverse=True,
+    )
+
+    for count, ingredient_id in shared_ingredients[:2]:
+        item = items_by_ingredient[ingredient_id]
+        unit = item.measurement_unit.unit_symbol if item.measurement_unit else "units"
+        tips.append(
+            f"{item.item_name} is used by {count} planned meals. "
+            f"Buy the combined {float(item.quantity):g} {unit} once to avoid duplicate purchases."
+        )
+
+    if recipe_costs:
+        lowest_cost, lowest_recipe = min(recipe_costs, key=lambda item: item[0])
+        tips.append(
+            f"{lowest_recipe} is your lowest-cost planned meal "
+            f"(about ${lowest_cost:.2f} per serving). Consider repeating it to reduce the week's cost."
+        )
+
+    if shared_ingredients and recipe_costs:
+        shared_item = items_by_ingredient[shared_ingredients[0][1]]
+        lowest_recipe = min(recipe_costs, key=lambda item: item[0])[1]
+        tips.append(
+            f"Budget combination: pair {lowest_recipe} with meals that also use "
+            f"{shared_item.item_name}, so fewer single-use ingredients are needed."
+        )
+
+    return tips[:3]
+
+
 def _shopping_response(shopping_list: ShoppingList | None, plan: MealPlan | None) -> dict:
     items = list(shopping_list.items) if shopping_list else []
     recipe_ids = sorted({int(entry.recipe_id) for entry in plan.entries}) if plan else []
@@ -353,6 +426,7 @@ def _shopping_response(shopping_list: ShoppingList | None, plan: MealPlan | None
             sum(float(item.quantity) * unit_price(item) for item in items),
             2,
         ),
+        "savings_tips": _shopping_saving_tips(plan, items),
     }
 
 

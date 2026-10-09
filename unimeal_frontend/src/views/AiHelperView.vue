@@ -39,6 +39,31 @@ async function ask() {
   }
 }
 
+async function smartSearch() {
+  if (!query.value.trim()) return
+
+  error.value = ''
+  loading.value = true
+
+  try {
+    const recipes = await api.smartSearch(query.value)
+
+    result.value = {
+      query: query.value,
+      mode: 'smart-search',
+      summary: `Found ${recipes.length} recipe(s) matching your request.`,
+      recipes,
+      cautions: [
+        'Smart search uses your budget, dietary tag, cooking time and ingredient keywords.',
+      ],
+    }
+  } catch {
+    error.value = 'Smart search could not find recipes. Please try another request.'
+  } finally {
+    loading.value = false
+  }
+}
+
 function useExample(example) {
   query.value = example  // 填充输入框
   ask()  // 立即搜索
@@ -63,7 +88,16 @@ function useExample(example) {
             class="form-control border-0 shadow-none py-2"
             placeholder="e.g. Vegetarian meals under $5 with rice"
             aria-label="Ask the AI helper"
-          /><button class="btn btn-primary rounded-pill px-4" :disabled="loading">
+          /><button
+            type="button"
+            class="btn btn-outline-primary rounded-pill px-3"
+            :disabled="loading"
+            @click="smartSearch"
+          >
+            Smart search
+          </button>
+
+          <button type="submit" class="btn btn-primary rounded-pill px-4" :disabled="loading">
             {{ loading ? 'Thinking...' : 'Ask UniMeal' }}
           </button>
         </div>
@@ -93,11 +127,31 @@ function useExample(example) {
         <article class="surface-card p-4 p-md-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
             <div>
-              <p class="eyebrow">{{ result.mode === 'live' ? 'Live AI recommendation' : 'Database recommendation' }}</p>
+              <p class="eyebrow">
+                {{
+                  result.mode === 'live'
+                    ? 'Live AI recommendation'
+                    : result.mode === 'smart-search'
+                      ? 'Smart recipe search'
+                      : result.mode === 'rule-based'
+                        ? 'Rule-based recommendation'
+                        : 'Database recommendation'
+                }}
+              </p>
               <h2 class="ai-heading">Your meal ideas</h2>
               <p class="text-secondary mb-0">{{ result.summary }}</p>
             </div>
-            <span class="soft-badge align-self-md-start">{{ result.mode === 'live' ? 'Gemini' : 'Database fallback' }}</span>
+            <span class="soft-badge align-self-md-start">
+              {{
+                result.mode === 'live'
+                  ? 'Gemini'
+                  : result.mode === 'smart-search'
+                    ? 'Rule-based search'
+                    : result.mode === 'rule-based'
+                      ? 'Personalised ranking'
+                      : 'Database fallback'
+              }}
+            </span>
           </div>
           <div v-if="result.recipes.length" class="row g-4 mt-2">
             <div v-for="recipe in result.recipes" :key="recipe.id" class="col-md-6 col-xl-4">

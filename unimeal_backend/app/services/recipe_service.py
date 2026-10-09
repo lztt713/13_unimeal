@@ -67,6 +67,11 @@ def search_recipes(
     if params.price_max is not None:
         query = query.filter(_price_per_serving_expression() <= params.price_max)
 
+    if params.max_minutes is not None:
+        query = query.filter(
+            (Recipe.preparation_minutes + Recipe.cooking_minutes) <= params.max_minutes
+        )
+
     if params.dietary_tags:
         for tag in params.dietary_tags:
             tag_value = _tag_search_value(tag)

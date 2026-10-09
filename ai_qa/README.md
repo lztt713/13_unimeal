@@ -12,6 +12,8 @@
 
 * ### unimeal_backend\app\models.py
 
+* ### unimeal_backend\app\services\recipe_service.py
+
 
 ## New file
 * ### unimeal_backend\app\routers\aiHelper.py
@@ -19,6 +21,7 @@
 * ### ai_qa\healthyCheck.py
 * ### .venv(python 3.13)
 * ### unimeal_backend\app\services\aiRecommendation.py
+* ### unimeal_backend\app\services\query_parser.py
 
 ## Start
 * ### python_requirements

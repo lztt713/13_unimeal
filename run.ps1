@@ -14,14 +14,19 @@ function Read-Password {
     finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
 }
 
-if (-not (Test-Path "$root\.env")) {
-    Write-Host "No .env file found. Enter the MySQL password for this run." -ForegroundColor Yellow
+$hasDatabaseUrl = $false
+if (Test-Path "$root\.env") {
+    $hasDatabaseUrl = Select-String -Path "$root\.env" -Pattern '^\s*DATABASE_URL\s*=\s*\S+' -Quiet
+}
+
+if (-not $hasDatabaseUrl) {
+    Write-Host "No DATABASE_URL found in .env. Enter the MySQL password for this run." -ForegroundColor Yellow
     $pw = Read-Password "MySQL root password"
     if (-not $pw) { Write-Host "No password entered. Aborted." -ForegroundColor Red; exit 1 }
     $pwEnc = [uri]::EscapeDataString($pw)
     $env:DATABASE_URL = "mysql+pymysql://root:$pwEnc@127.0.0.1:3306/unimeal_planner?charset=utf8mb4"
 } else {
-    Write-Host "Using database config from .env" -ForegroundColor DarkGray
+    Write-Host "Using DATABASE_URL from .env" -ForegroundColor DarkGray
 }
 
 Write-Host "========== Starting UniMeal ==========" -ForegroundColor Cyan

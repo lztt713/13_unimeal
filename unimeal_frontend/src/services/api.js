@@ -2,11 +2,11 @@ import axios from 'axios'
 import { ref } from 'vue'
 
 // 全局错误信息：任何请求失败，都会写进这个变量
-// 页面可以在顶部监听它，统一弹一个错误提示
+// 页面可以在顶部监听它，统一弹一个错误提�?
 export const apiError = ref('')
 // 创建 axios 实例（整个项目共用这一个实例）
 export const http = axios.create({
-  // 后端地址：优先读环境变量，没有就用 /api（开发时代理到后端）
+  // 后端地址：优先读环境变量，没有就�? /api（开发时代理到后端）
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
   withCredentials: true,
@@ -27,7 +27,7 @@ http.interceptors.response.use(
     return Promise.reject(error)
   },
 )
-// 辅助函数：把 axios 的 { data, status, headers } 外壳剥掉
+// 辅助函数：把 axios �? { data, status, headers } 外壳剥掉
 // 只返回真正的业务数据，让页面代码更干净
 const data = (request) => request.then((response) => response.data)
 // ---------- 所有后端接口的清单 ----------
@@ -84,7 +84,7 @@ export const api = {
   markNotificationRead: (id) => data(http.patch(`/notifications/${id}/read`)),
   markAllNotificationsRead: () => data(http.patch('/notifications/read-all')),
   clearReadNotifications: () => data(http.delete('/notifications/read')),
-  // ===== 管理员 =====
+  // ===== 管理�? =====
   getAdminOverview: () => data(http.get('/admin/overview')),
   updateReportStatus: (id, status) => data(http.patch(`/admin/reports/${id}`, { status })),
   createContentReport: (report) => data(http.post('/reports', report)),
@@ -98,5 +98,7 @@ export const api = {
   toggleSavedRecipe: (id) => data(http.post(`/recipes/${id}/saved`)),
   getSavedRecipeIds: () => data(http.get('/saved-recipes')),
   // ===== AI =====
-  getAiRecommendation: (query) => data(http.post('/ai/recommendations',{ query },{ timeout: 30000 },),),
+  getAiRecommendation: (query) =>
+    data(http.post('/ai/recommendations', { query }, { timeout: 30000 })),
+  smartSearch: (query) => data(http.post('/ai/smart-search', { query })),
 }
