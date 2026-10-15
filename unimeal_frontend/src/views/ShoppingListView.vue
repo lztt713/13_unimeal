@@ -6,20 +6,22 @@ const list = ref(null)
 const loading = ref(true)
 const loadError = ref(false)
 const activeTab = ref('to-buy')
+// The To buy tab is the default task-focused view for a shopping trip.
 const isToBuyTab = computed(() => activeTab.value === 'to-buy')
 const purchasedItems = computed(() => list.value?.items.filter((item) => item.purchased) || [])
 const toBuyItems = computed(() => list.value?.items.filter((item) => !item.purchased) || [])
 const visibleItems = computed(() => (isToBuyTab.value ? toBuyItems.value : purchasedItems.value))
-// ----------  group by category -
+
+// Group the active tab's items so the list remains easy to scan while shopping.
 const groupedItems = computed(
   () =>
     visibleItems.value.reduce((groups, item) => {
-      const category = item.category || 'Other'  // 没有 category 就归为 'Other'
+      const category = item.category || 'Other'
       ;(groups[category] ||= []).push(item)
       return groups
     }, {}) || {},
 )
-// -------- purchased count
+// These derived values drive the summary card without changing the server response.
 const purchasedCount = computed(
   () => list.value?.items.filter((item) => item.purchased).length || 0,
 )
@@ -38,6 +40,7 @@ const boughtCost = computed(() =>
 )
 
 onMounted(async () => {
+  // Generate the latest list from the student's current meal plan.
   try {
     list.value = await api.getShoppingList()
   } catch {
@@ -46,7 +49,7 @@ onMounted(async () => {
     loading.value = false
   }
 })
-// -------- Method: toggle purchased ---
+// Refresh the list with the server's updated purchased state.
 async function toggle(item) {
   list.value = await api.toggleShoppingItem(item.id)
 }
@@ -76,8 +79,9 @@ async function toggle(item) {
       <div v-else-if="loadError" class="empty-state p-5">
         We could not build your shopping list. Check your meal plan and try again.
       </div>
-      <template v-else-if="list && list.items.length"
-        ><div class="shopping-tabs" role="tablist" aria-label="Shopping list status">
+      <template v-else-if="list && list.items.length">
+        <!-- Separate active shopping tasks from items already bought. -->
+        <div class="shopping-tabs" role="tablist" aria-label="Shopping list status">
           <button
             class="shopping-tab"
             :class="{ active: isToBuyTab }"
@@ -100,7 +104,6 @@ async function toggle(item) {
           </button>
         </div>
         <div class="row g-4">
-           <!-- 左侧：按类别分组的食材 -->
           <div class="col-lg-8">
             <section v-if="!visibleItems.length" class="shopping-empty surface-card p-4 p-md-5">
               <template v-if="isToBuyTab">
@@ -115,14 +118,14 @@ async function toggle(item) {
               </template>
             </section>
             <template v-else>
-              <!-- Outer loop: iterate over categories -->
+              <!-- Group ingredients by category so the list is easy to scan in a shop. -->
               <section
                 v-for="(items, category) in groupedItems"
                 :key="category"
                 class="surface-card p-4 p-md-5 mb-4"
               >
                 <h2 class="list-heading">{{ category }}</h2>
-                <!-- Inner loop: all items in this category -->
+                <!-- Each row toggles its purchased state through the backend. -->
                 <label
                   v-for="item in items"
                   :key="`${item.ingredientId}-${item.unit}`"
@@ -138,16 +141,14 @@ async function toggle(item) {
               </section>
             </template>
           </div>
-          <!-- 右侧：Plan summary -->
           <aside class="col-lg-4">
             <section class="surface-card p-4 sticky-lg-top summary-card">
               <p class="eyebrow">This trip</p>
               <h2 class="list-heading">Plan summary</h2>
-              <!-- Recipes planned count -->
+              <!-- These totals explain how the current shopping state affects the trip. -->
               <div class="summary-row">
                 <span>Recipes planned</span><strong>{{ list.recipeIds.length }}</strong>
               </div>
-              <!-- Items checked -->
               <div class="summary-row">
                 <span>Items bought</span
                 ><strong>{{ purchasedCount }} / {{ list.items.length }}</strong>
@@ -176,7 +177,7 @@ async function toggle(item) {
             </section>
           </aside>
         </div></template>
-         <!--Empty: no meal plan -->
+      <!-- A shopping list cannot exist until the student has planned at least one recipe. -->
       <div v-else class="empty-state p-5">
         <h2 class="h4 fw-bold">Your shopping list starts with your meal plan.</h2>
         <p class="text-secondary mb-4">Add recipes to your calendar and UniMeal will combine the ingredients for you.</p>
@@ -190,7 +191,6 @@ async function toggle(item) {
 </template>
 
 <style scoped>
-/* 每个分类卡片的标题，以及右侧 "Plan summary" */
 .list-heading {
   color: var(--um-ink);
   font-size: 1.35rem;
@@ -203,6 +203,7 @@ async function toggle(item) {
   font-size: 0.85rem;
 }
 .shopping-tabs {
+  /* Compact tabs make it easy to switch without mixing bought and unbought items. */
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
@@ -223,10 +224,7 @@ async function toggle(item) {
 .shopping-empty {
   border-left: 4px solid var(--um-green);
 }
-/* ===== Each item row: 3-column grid ===== */
-/* Col 1: circle */
-/*  Col 2: name, auto-fill */
-/* Col 3: quantity, auto */
+/* Each shopping row uses a check control, flexible item name and fixed quantity column. */
 .shopping-item {
   display: grid;
   grid-template-columns: 1.2rem minmax(0, 1fr) auto;
@@ -234,33 +232,33 @@ async function toggle(item) {
   align-items: center;
   padding: 1rem 0;
   border-bottom: 1px solid var(--um-line);
-  cursor: pointer; /*鼠标移上去变手型，提示可点击*/
+  cursor: pointer;
 }
-/* ===== Remove border from last item ===== */
+/* The last row has no divider because the card already provides a boundary. */
 .shopping-item:last-child {
   border: 0;
 }
-/* =====  Hide native checkbox ===== */
+/* The native checkbox remains accessible but is visually replaced with a custom circle. */
 .shopping-item input {
   position: absolute;
   opacity: 0;
 }
-/* 每行最左侧的空心小圆圈 */
 .check-circle {
+  /* An empty circle represents an item still to buy. */
   width: 1.1rem;
   height: 1.1rem;
   border: 1.5px solid #bdc7b9;
   border-radius: 50%;
 }
-/* 用户勾选后，圆圈变成"绿色实心圆 + 中间白点 */
 .shopping-item input:checked + .check-circle {
+  /* A green filled circle with an inset white dot represents a purchased item. */
   border-color: var(--um-green);
   background: var(--um-green);
   box-shadow: inset 0 0 0 3px #fff;
 }
-/* 已购买项的删除线 */
 .shopping-item.purchased .item-name,
 .shopping-item.purchased strong {
+  /* Purchased items remain visible in their history tab but are clearly de-emphasised. */
   color: #9ca59a;
   text-decoration: line-through;
 }
@@ -269,17 +267,16 @@ async function toggle(item) {
   min-width: 0;
   font-weight: 650;
 }
-/* 每行右侧的 "500 g"、"6 pc" */
 .shopping-item strong {
+  /* Prevent quantities such as "500 g" from wrapping onto two lines. */
   color: var(--um-green);
   text-align: right;
-  white-space: nowrap;  /*禁止换行（"500 g" 不断成两行）*/
+  white-space: nowrap;
 }
 
 .summary-card {
   top: 6rem;
 }
-/* 右侧那 3 行"标签 + 数字" */
 .summary-row,
 .summary-total {
   display: flex;
@@ -290,7 +287,8 @@ async function toggle(item) {
 }
 
 .summary-row {
-  border-bottom: 1px solid var(--um-line);   /* 中间两条有分割线 */
+  /* Dividers separate the intermediate counts in the trip summary. */
+  border-bottom: 1px solid var(--um-line);
 }
 .summary-row strong {
   color: var(--um-ink);
@@ -298,7 +296,7 @@ async function toggle(item) {
 
 .summary-total {
   margin-top: 0.7rem;
-  color: var(--um-ink);   /* 最后一行颜色更深 */
+  color: var(--um-ink);
   font-weight: 750;
 }
 

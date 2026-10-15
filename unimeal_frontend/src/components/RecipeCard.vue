@@ -36,7 +36,7 @@ defineProps({
 </template>
 
 <style scoped>
-/* ===== 卡片容器：相对定位 + 平滑动画 ===== */
+/* Position the stretched detail link over the whole card and animate hover feedback. */
 .recipe-card {
   position: relative;
   transition:
@@ -44,19 +44,18 @@ defineProps({
     box-shadow 0.2s ease;
 }
 
-/* ===== 卡片悬停效果（微微上浮 + 阴影） ===== */
 .recipe-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 15px 35px rgba(50, 68, 47, 0.12);
 }
 
-/* ===== 卡片图片区域 ===== */
+/* Reserve a fixed image area so recipe cards align in the grid. */
 .recipe-card-image {
   height: 11.5rem;
   overflow: hidden;
 }
 
-/* ===== 价格标签（右上角的“小药丸”） ===== */
+/* Keep the estimated cost visible in the top-right corner of the image. */
 .price-pill {
   position: absolute;
   top: 0.75rem;
@@ -69,7 +68,7 @@ defineProps({
   font-weight: 800;
 }
 
-/* ===== 卡片标题 ===== */
+/* Recipe title and rating metadata use the primary visual hierarchy. */
 .recipe-card-title {
   margin: 0;
   color: var(--um-ink);
@@ -78,7 +77,6 @@ defineProps({
   letter-spacing: -0.025em;
 }
 
-/* ===== 评星等级 ===== */
 .rating {
   color: #a65f10;
   font-size: 0.82rem;
@@ -90,14 +88,14 @@ defineProps({
   font-weight: 600;
 }
 
-/* ===== 烹饪元信息（时间、难度等） ===== */
+/* Time and difficulty form the compact cooking metadata row. */
 .recipe-meta {
   color: var(--um-muted);
   font-size: 0.83rem;
   font-weight: 650;
 }
 
-/* ===== 饮食标签（素食、无麸质等） ===== */
+/* Dietary tags appear as neutral pill labels below recipe metadata. */
 .diet-tag {
   border-radius: 99px;
   padding: 0.2rem 0.48rem;

@@ -2,24 +2,28 @@
 import { computed, onMounted, ref } from 'vue'
 import RecipeCard from '../components/RecipeCard.vue'
 import { api } from '../services/api'
-// ----------Reactive state ----------
+
+// Dashboard data combines the current meal plan, budget and saved recipes.
 const data = ref(null)
 const loading = ref(true)
 const error = ref(false)
 const recipes = ref([])
 const currentUser = ref(null)
+// Controls the "replace tonight's dinner" dialog.
 const replaceOpen = ref(false)
+// Only the selected ID is stored while the replacement dialog is open.
 const selectedRecipeId = ref('')
 
-// 预算使用百分比：花了多少 / 总预算 × 100，封顶 100%
+// Cap the visual progress bar at 100% while still allowing over-budget messaging.
 const budgetPercent = computed(() =>
   data.value?.weeklyBudget > 0 ? Math.min(100, (data.value.spent / data.value.weeklyBudget) * 100) : 0,
 )
 const hasBudget = computed(() => data.value?.weeklyBudget > 0)
 const remaining = computed(() => (hasBudget.value ? data.value.weeklyBudget - data.value.spent : 0))
 const overBudget = computed(() => hasBudget.value && remaining.value < 0)
+// First-time students have neither a meal planned for tonight nor any favourites.
 const isFirstPlan = computed(() => !data.value?.tonight && !(data.value?.favourites?.length))
-// 对应页面：底部"Plan and manage"那 6 张卡片
+// These cards provide a direct route through the main student workflow.
 const quickLinks = [
   {
     title: 'Browse recipes',
@@ -58,8 +62,7 @@ const quickLinks = [
     action: 'Edit profile',
   },
 ]
-// ---------- Lifecycle: fetch 3 APIs in parallel ----------
-// Promise.all fires all 3 requests at once, much faster than sequential
+// Load independent dashboard resources concurrently to reduce page wait time.
 onMounted(async () => {
   try {
     ;[data.value, recipes.value, currentUser.value] = await Promise.all([
@@ -75,20 +78,18 @@ onMounted(async () => {
 })
 
 async function replaceDinner() {
+  // Keep the guard even though the save button is disabled without a selection.
   if (!selectedRecipeId.value) return
-  // 生成今天的日期，格式：YYYY-MM-DD
   const now = new Date()
+  // Persist this as a normal meal-plan entry so the calendar and shopping list stay in sync.
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  // 调用后端接口，把"今天晚餐"这条记录保存/更新
   await api.saveMealPlanEntry({
     plannedDate: today,
     mealType: 'Dinner',
     recipeId: Number(selectedRecipeId.value),
     plannedServings: 1,
   })
-  // 保存成功后，重新拉一次仪表盘数据（页面上的晚餐卡片会自动更新）
   data.value = await api.getDashboard()
-    // 关闭弹窗，清空选择
   replaceOpen.value = false
   selectedRecipeId.value = ''
 }
@@ -111,16 +112,12 @@ async function replaceDinner() {
           >Plan my week</RouterLink>
       </div>
 
-      <!-- ---------- 加载中状态 ---------- -->
-      <!-- 当 loading 为 true 时，只显示这行字 -->
       <div v-if="loading" class="py-5 text-center text-secondary">Loading your meal plan…</div>
-      <!-- ---------- 加载失败状态 ---------- -->
-      <!-- 当 loading 为 false 且 error 为 true 时，显示错误提示 -->
       <div v-else-if="error" class="empty-state p-5">
         We could not load your dashboard. Please try again.
       </div>
-      <!-- ---------- 正常内容（数据加载成功后才渲染） ---------- -->
       <template v-else>
+        <!-- First-time guidance is shown only when the student has not started a plan yet. -->
         <section v-if="isFirstPlan" class="getting-started surface-card p-4 p-md-5 mb-4">
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <div>
@@ -131,7 +128,7 @@ async function replaceDinner() {
             <RouterLink class="btn btn-primary rounded-pill px-4 flex-shrink-0" to="/calendar">Plan my week</RouterLink>
           </div>
         </section>
-        <!-- Row 1: Dinner card + Budget card -->
+        <!-- The main summary pairs tonight's meal with the current weekly budget. -->
         <div class="row g-4 align-items-stretch">
           <div class="col-lg-8">
             <article v-if="data.tonight" class="surface-card dinner-card h-100">
@@ -147,7 +144,7 @@ async function replaceDinner() {
                   <p class="eyebrow">Tonight's dinner</p>
                   <h2>{{ data.tonight.title }}</h2>
                   <p class="text-muted mb-4">A tasty, low-stress dinner that fits your plan.</p>
-                  <!-- Three badges: time / cost / difficulty -->
+                  <!-- Show the key decision details before the student opens the recipe. -->
                   <div class="d-flex flex-wrap gap-2 mb-4">
                     <span class="soft-badge">{{ data.tonight.cookTime }} min</span
                     ><span class="soft-badge">${{ data.tonight.estimatedCost.toFixed(2) }}</span
@@ -168,7 +165,6 @@ async function replaceDinner() {
                 </div>
               </div>
             </article>
-            <!-- 如果今晚没有安排晚餐，显示空状态 -->
             <article v-else class="surface-card h-100 p-4 p-xl-5">
               <p class="eyebrow">Tonight's dinner</p>
               <h2>No dinner planned yet.</h2>
@@ -176,7 +172,6 @@ async function replaceDinner() {
               <button class="btn btn-primary rounded-pill" @click="replaceOpen = true">Choose dinner</button>
             </article>
           </div>
-           <!-- 右边（占 4 列）：预算卡片 -->
           <div class="col-lg-4">
             <article class="surface-card budget-card h-100 p-4 p-xl-5">
               <div class="d-flex justify-content-between align-items-start mb-4">
@@ -203,13 +198,12 @@ async function replaceDinner() {
                 You have {{ Math.round(100 - budgetPercent) }}% of your weekly food budget
                 remaining.
               </p>
-              <!-- 如果没设置预算，显示设置链接 -->
               <RouterLink v-else to="/profile">Set this week's budget</RouterLink>
             </article>
           </div>
         </div>
 
-        <!-- ========== 第二块：最近收藏的食谱 ========== -->
+        <!-- Saved recipes offer a quick way to return to meals the student liked. -->
         <section class="mt-5 pt-2">
           <div class="d-flex align-items-end justify-content-between mb-4">
             <div>
@@ -218,17 +212,15 @@ async function replaceDinner() {
             </div>
             <RouterLink class="text-link" to="/recipes">Explore recipes →</RouterLink>
           </div>
-           <!-- 如果有收藏，循环渲染卡片 -->
           <div v-if="data.favourites.length" class="row g-4">
             <div v-for="recipe in data.favourites" :key="recipe.id" class="col-sm-6 col-lg-4">
               <RecipeCard :recipe="recipe" />
             </div>
           </div>
-            <!-- 没有收藏则显示空状态 -->
           <div v-else class="empty-state p-5">Save a recipe and it will appear here.</div>
         </section>
 
-        <!-- ========== 第三块：快捷入口（6 张卡片） ========== -->
+        <!-- The quick-link cards expose the remaining planning tasks from one page. -->
         <section class="mt-5 pt-2">
           <div class="mb-3">
             <h2 class="section-title">Plan and manage</h2>
@@ -236,7 +228,7 @@ async function replaceDinner() {
               Use these pages to complete your weekly meal-planning tasks.
             </p>
           </div>
-          <!-- Loop through quickLinks array to render 6 cards -->
+          <!-- Render the navigation cards from one small, maintainable data array. -->
           <div class="row g-3">
             <div v-for="link in quickLinks" :key="link.to" class="col-md-6 col-lg-4">
               <article class="card h-100">
@@ -252,11 +244,10 @@ async function replaceDinner() {
           </div>
         </section>
       </template>
-      <!-- ========== 弹窗：替换晚餐 ========== -->
+      <!-- The replacement modal writes directly to today's Dinner meal-plan entry. -->
       <div v-if="replaceOpen" class="modal-backdrop-custom" @click.self="replaceOpen = false">
         <section
           class="replace-modal surface-card">
-        <!-- 右上角关闭按钮 -->
           <button class="close-modal" type="button" @click="replaceOpen = false">
             ×
           </button>
@@ -265,7 +256,6 @@ async function replaceDinner() {
           <p class="text-secondary mt-2">
             This updates today's Dinner entry in your current meal plan.
           </p>
-           <!-- 下拉框：从所有食谱里选一个 -->
           <select v-model="selectedRecipeId" class="form-select mt-3">
             <option value="">Select a recipe</option>
             <option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">
@@ -295,12 +285,13 @@ async function replaceDinner() {
 </template>
 
 <style scoped>
-/* ===== 卡片容器基础高度 ===== */
+/* The dinner card is the dashboard's primary visual focus. */
 .dinner-card {
   min-height: 22rem;
-  border-top: 3px solid var(--um-green);/* 顶部绿色装饰线 */
+  border-top: 3px solid var(--um-green);
 }
 .getting-started {
+  /* A left border makes onboarding guidance distinct from dashboard summaries. */
   border-left: 4px solid var(--um-green);
 }
 
@@ -308,7 +299,6 @@ async function replaceDinner() {
   min-height: 14rem;
 }
 
-/* ===== 标题通用样式（共用选择器，分行写更清晰） ===== */
 .dinner-card h2,
 .budget-card h2,
 .section-title {
@@ -316,28 +306,24 @@ async function replaceDinner() {
   font-weight: 700;
 }
 
-/* ===== 晚餐卡片标题 ===== */
 .dinner-card h2 {
   font-size: 2rem;
 }
 
-/* ===== 预算卡片标题 ===== */
 .budget-card h2 {
   font-size: 2.25rem;
 }
-/* "left" 这个小字 */
 .budget-card h2 span {
   color: var(--um-muted);
   font-size: 1rem;
   font-weight: 650;
   letter-spacing: 0;
 }
-/* 预算卡片顶部珊瑚色装饰线 */
 .budget-card {
+  /* Coral differentiates spending information from meal-planning content. */
   border-top: 3px solid var(--um-coral);
 }
 
-/* ===== 预算图标（圆形美元符号） ===== */
 .budget-icon {
   display: flex;
   width: 2.5rem;
@@ -351,33 +337,28 @@ async function replaceDinner() {
   font-weight: 800;
 }
 
-/* ===== 进度条背景轨道 ===== */
 .progress {
   height: 0.6rem;
   border-radius: 0.375rem;
   background: #e9ece5;
 }
 
-/* ===== 进度条填充条 ===== */
 .progress-bar {
   border-radius: 0.375rem;
   background: var(--um-green);
 }
 
-/* ===== 预算备注文字 ===== */
 .budget-note {
   color: var(--um-muted);
   font-size: 0.9rem;
   line-height: 1.55;
 }
 
-/* ===== 区块标题 favourites / Choose a replacement===== */
 .section-title {
   margin: 0;
   font-size: 1.5rem;
 }
 
-/* ===== 文字链接（“Explore recipes →”） ===== */
 .text-link {
   color: var(--um-green);
   font-size: 0.9rem;
@@ -388,8 +369,8 @@ async function replaceDinner() {
   color: var(--um-coral);
 }
 
-/* ===== 弹窗遮罩层（半透明黑背景） ===== */
 .modal-backdrop-custom {
+  /* Overlay the entire page while keeping the selection dialog centred. */
   position: fixed;
   z-index: 1050;
   inset: 0;
@@ -399,24 +380,21 @@ async function replaceDinner() {
   padding: 1rem;
   background: rgba(30, 43, 28, 0.45);
 }
-/* ===== 弹窗本体（白色卡片） ===== */
 .replace-modal {
   position: relative;
   width: min(100%, 32rem);
   padding: 2rem;
 }
-/* 卡片容器：浅灰绿边框 + 圆角 + 无阴影 */
 .card {
+  /* Use a light card style so the quick links remain secondary to the summary. */
   border-color: var(--um-line);
   border-radius: 0.5rem;
   box-shadow: none;
   border-top: 3px solid var(--um-green);
 }
-/* 卡片里的标题：绿色 */
 .card h3 {
   color: var(--um-green);
 }
-/* ===== 弹窗右上角的关闭按钮（×） ===== */
 .close-modal {
   position: absolute;
   top: 1rem;
@@ -427,7 +405,6 @@ async function replaceDinner() {
   font-size: 1.4rem;
 }
 
-/* ===== 移动端适配（屏幕宽度小于 768px 时） ===== */
 @media (max-width: 767.98px) {
   .dinner-image-wrap {
     height: 13rem;

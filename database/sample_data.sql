@@ -375,8 +375,8 @@ WHERE u.email = 'student.alice@unimeal.test'
 
 -- ---------------------------------------------------------------------------
 -- Current frontend preview data
--- These records normalise the six recipe cards currently shown by
--- unimeal_frontend/src/mock/recipes.js.  The existing Alice/Ben records above
+-- These records provide the current frontend recipe-card preview data. The
+-- existing Alice/Ben records above
 -- remain as compact validation fixtures used by validation_queries.sql.
 -- ---------------------------------------------------------------------------
 

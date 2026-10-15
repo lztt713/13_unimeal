@@ -5,18 +5,21 @@ import { api } from '../services/api'
 
 const profile = ref(null)
 const saved = ref(false)
+// Allergen options are reference data maintained by the platform rather than free text.
 const allergyOptions = ref([])
-const allRecipes = ref([])   // 所有食谱（用于动态提取菜系）
+// Recipe data supplies the available cuisine choices so preferences stay consistent.
+const allRecipes = ref([])
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
 const route = useRoute()
 const router = useRouter()
 const isOnboarding = computed(() => route.query.onboarding === '1')
-// 菜系：从食谱数据动态提取
+
+// Cuisine choices stay aligned with the recipe data returned by the API.
 const cuisineOptions = computed(() =>
   [...new Set(allRecipes.value.map((recipe) => recipe.cuisine))].sort(),
 )
 onMounted(async () => {
-  // 并行请求用户资料 + 所有食谱
+  // Load profile data and reference options together to populate the form.
   const [userData, recipesData, availableAllergies] = await Promise.all([
     api.getCurrentUser(),
     api.getRecipes(),
@@ -30,7 +33,7 @@ onMounted(async () => {
   allergyOptions.value = availableAllergies
 })
 
-// ----------save profile (students only)
+// Save profile changes and complete onboarding for newly registered students.
 async function saveProfile() {
   const updatedProfile = await api.updateProfile(profile.value)
   profile.value = {
@@ -41,7 +44,7 @@ async function saveProfile() {
     await router.push('/dashboard')
     return
   }
-  // Show "saved" toast, auto-hide after 2.5s
+  // Show a short success message for normal profile edits outside onboarding.
   saved.value = true
   setTimeout(() => {
     saved.value = false
@@ -55,7 +58,7 @@ async function saveProfile() {
       <div v-if="!profile" class="py-5 text-center text-secondary">Loading your profile...</div>
       <template v-else
         ><div class="profile-header surface-card p-4 p-md-5">
-           <!-- Avatar: first letter of display name -->
+          <!-- The avatar is a lightweight visual identity generated from the display name. -->
           <div class="profile-avatar">{{ profile.displayName.charAt(0) }}</div>
           <div>
             <p class="eyebrow">{{ profile.role }} account</p>
@@ -72,13 +75,13 @@ async function saveProfile() {
           </p>
         </section>
         <form class="row g-4 mt-1" @submit.prevent="saveProfile">
-          <!-- Left column width dynamic: 8 for students, 12 for others -->
+          <!-- Students need the preference form; other roles use the full-width account guidance. -->
           <div :class="profile.role === 'student' ? 'col-lg-8' : 'col-lg-12'">
-             <!-- Student-only: full preference form -->
+            <!-- Only a student profile affects recommendations, planning and safety checks. -->
             <section v-if="profile.role === 'student'" class="surface-card p-4 p-md-5">
               <h2 class="profile-title">Preferences that shape your plan</h2>
               <div class="row g-3 mt-1">
-                <!--  Budget input with $ prefix -->
+                <!-- The budget is numeric and displayed with a dollar prefix for clarity. -->
                 <div class="col-md-6">
                   <label class="form-label">Weekly food budget</label>
                   <div class="input-group">
@@ -92,7 +95,7 @@ async function saveProfile() {
                     />
                   </div>
                 </div>
-                 <!--  Cooking skill -->
+                <!-- Cooking skill helps prioritise appropriate recipe difficulty. -->
                 <div class="col-md-6">
                   <label class="form-label">Cooking skill</label
                   ><select v-model="profile.cookingSkill" class="form-select">
@@ -101,7 +104,7 @@ async function saveProfile() {
                     <option>Confident</option>
                   </select>
                 </div>
-                <!--  Kitchen access -->
+                <!-- Kitchen access is selected from the supported preparation environments. -->
                 <div class="col-md-6">
                   <label class="form-label">Kitchen access</label
                   ><select v-model="profile.kitchenAccess" class="form-select">
@@ -113,6 +116,7 @@ async function saveProfile() {
                 </div>
               </div>
               <fieldset class="mt-4">
+                <!-- Allergen selections use controlled values so matching is reliable. -->
                 <legend class="form-label mb-2">Allergies</legend>
                 <div v-if="allergyOptions.length" class="d-flex flex-wrap gap-2">
                   <label v-for="allergy in allergyOptions" :key="allergy.id" class="choice-pill">
@@ -123,6 +127,7 @@ async function saveProfile() {
                 <p v-else class="text-secondary mb-0">No allergen options are configured.</p>
               </fieldset>
               <fieldset class="mt-4">
+                <!-- Dietary tags can be combined to represent more than one preference. -->
                 <legend class="form-label mb-2">Dietary preferences</legend>
                 <div class="d-flex flex-wrap gap-2">
                   <label v-for="tag in tagOptions" :key="tag" class="choice-pill"
@@ -132,6 +137,7 @@ async function saveProfile() {
                 </div>
               </fieldset>
               <fieldset class="mt-4">
+                <!-- Cuisine preferences use values derived from the existing recipe catalogue. -->
                 <legend class="form-label mb-2">Favourite cuisines</legend>
                 <div class="d-flex flex-wrap gap-2">
                   <label v-for="cuisine in cuisineOptions" :key="cuisine" class="choice-pill"
@@ -141,7 +147,6 @@ async function saveProfile() {
                 </div>
               </fieldset>
             </section>
-            <!-- ========== 贡献者专属 ========== -->
             <section v-else-if="profile.role === 'contributor'" class="surface-card p-4 p-md-5">
               <h2 class="profile-title">Your contributor account</h2>
               <p class="text-secondary mb-3">
@@ -152,7 +157,6 @@ async function saveProfile() {
                 <RouterLink to="/my-recipes">My Recipes</RouterLink> page.
               </p>
             </section>
-            <!-- （管理员） -->
             <section v-else class="surface-card p-4 p-md-5">
               <h2 class="profile-title">Your administrator account</h2>
                <p class="text-secondary mb-3">
@@ -167,7 +171,7 @@ async function saveProfile() {
             </section>
 
           </div>
-          <!-- Right: Save changes card (students only) -->
+          <!-- A sticky save panel remains visible while the student reviews profile preferences. -->
           <aside v-if="profile.role === 'student'" class="col-lg-4">
             <section class="surface-card p-4 sticky-lg-top profile-side">
               <h2 class="profile-title">Save changes</h2>
@@ -187,14 +191,14 @@ async function saveProfile() {
 </template>
 
 <style scoped>
-
+/* Header layout keeps the generated avatar and account identity visually connected. */
 .profile-header {
   display: flex;
   gap: 1.25rem;
   align-items: center;
 }
-/* ===== 圆形头像  ===== */
 .profile-avatar {
+  /* A circular coral avatar distinguishes account identity from recipe imagery. */
   display: flex;
   width: 4.5rem;
   height: 4.5rem;
@@ -217,10 +221,10 @@ async function saveProfile() {
   font-size: 0.83rem;
   font-weight: 750;
 }
-/* ===== 表单控件边框和圆角 ===== */
 .form-control,
 .form-select,
 .input-group-text {
+  /* All profile controls share the same border and rounded-corner treatment. */
   border-color: var(--um-line);
   border-radius: 0.7rem;
 }
@@ -232,12 +236,13 @@ async function saveProfile() {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-/* 输入框：只保留右侧圆角  */
 .input-group .form-control {
+  /* The budget input joins cleanly to its dollar-prefix addon. */
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 .choice-pill {
+  /* Checkbox options are displayed as compact, easily scannable pill controls. */
   border: 1px solid var(--um-line);
   border-radius: 99px;
   padding: 0.38rem 0.65rem;

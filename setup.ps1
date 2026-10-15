@@ -16,10 +16,21 @@ function Read-Password {
 
 Write-Host "========== UniMeal one-time setup ==========" -ForegroundColor Cyan
 
-# 1. Locate the mysql client
+# 1. Locate the mysql client. Set UNIMEAL_MYSQL_EXE when MySQL is installed elsewhere.
 $mysql = $null
-if (Get-Command mysql -ErrorAction SilentlyContinue) { $mysql = "mysql" }
-elseif (Test-Path "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe") { $mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" }
+if ($env:UNIMEAL_MYSQL_EXE -and (Test-Path $env:UNIMEAL_MYSQL_EXE)) {
+    $mysql = $env:UNIMEAL_MYSQL_EXE
+}
+elseif (Get-Command mysql -ErrorAction SilentlyContinue) {
+    $mysql = "mysql"
+}
+else {
+    $mysqlCandidates = @(
+        "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe",
+        "D:\MYSQL\MySQL Server 8.0\bin\mysql.exe"
+    )
+    $mysql = $mysqlCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
 
 if (-not $mysql) {
     Write-Warning "mysql client not found. Apply the SQL files in database/migrations manually."
@@ -31,8 +42,13 @@ if (-not $mysql) {
     $sqlFiles = @(
         "$root\database\master_schema.sql",
         "$root\database\sample_data.sql",
+        "$root\database\migrations\20260823_frontend_alignment.sql",
+        "$root\database\migrations\20260908_complete_recipe_details.sql",
         "$root\database\migrations\20260919_profile_and_notifications.sql",
+        "$root\database\migrations\20260920_cooking_skill_recipe_matches.sql",
         "$root\database\migrations\20260920_demo_recipe_data.sql",
+        "$root\database\migrations\20260920_recipe_images.sql",
+        "$root\database\migrations\20260920_remove_comment_demo_prefix.sql",
         "$root\database\migrations\20260923_frontend_equipment_and_allergens.sql",
         "$root\database\migrations\20260927_allergy_warning_data.sql",
         "$root\database\migrations\20260929_add_15_student_recipes.sql",
@@ -51,10 +67,24 @@ if (-not $mysql) {
     Write-Host "      database ready" -ForegroundColor Green
 }
 
-# 2. Backend dependencies
-Write-Host "[2/3] Install backend deps (pip)" -ForegroundColor Green
-Set-Location "$root\unimeal_backend"
-python -m pip install -r requirements.txt
+# 2. Backend virtual environment and dependencies
+# run_backend.ps1 starts the backend from this root-level environment, so setup
+# must create it instead of installing packages into the user's system Python.
+Write-Host "[2/3] Create backend virtual environment and install dependencies" -ForegroundColor Green
+$venvDir = Join-Path $root ".venv"
+$venvPython = Join-Path $venvDir "Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $venvPython)) {
+    Write-Host "      creating .venv ..." -ForegroundColor DarkGray
+    python -m venv $venvDir
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $venvPython)) {
+        throw "Could not create Python virtual environment: $venvDir"
+    }
+}
+& $venvPython -m pip install --upgrade pip
+& $venvPython -m pip install -r "$root\unimeal_backend\requirements.txt"
+if ($LASTEXITCODE -ne 0) {
+    throw "Backend dependency installation failed. Check your Python installation and internet connection."
+}
 
 # 3. Frontend dependencies
 Write-Host "[3/3] Install frontend deps (npm)" -ForegroundColor Green

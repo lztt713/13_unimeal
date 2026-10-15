@@ -6,8 +6,9 @@ import { api } from '../services/api'
 const recipes = ref([])
 const currentUser = ref(null)
 const loading = ref(true)
-const search = ref('')  //  Search keyword
-// Filter object (5 dimensions, default all 'all')
+const search = ref('')
+
+// All filters are combined with the search text when computing visible recipes.
 const filters = ref({
   price: 'all',
   cuisine: 'all',
@@ -15,14 +16,15 @@ const filters = ref({
   dietary: 'all',
   cookTime: 'all',
 })
-const filterOpen = ref(false)  // 移动端筛选面板开关
+// On small screens the filter panel is collapsed until the student asks to see it.
+const filterOpen = ref(false)
+// Build filter choices from the catalogue rather than duplicating recipe data in the UI.
 const cuisines = computed(() => [...new Set(recipes.value.map((recipe) => recipe.cuisine))])
-// 从所有食谱的 dietaryTags 里提取不重复的标签
 const dietaryTags = computed(() =>
   [...new Set(recipes.value.flatMap((recipe) => recipe.dietaryTags || []))].sort(),
 )
 const cookingSkillMessage = computed(() => {
-  // 只有学生才显示这条提示
+  // Cooking-level guidance is relevant only to student accounts.
   if (currentUser.value?.role !== 'student') return ''
   const skill = currentUser.value?.cookingSkill
   if (skill === 'Beginner') return 'Easy recipes are shown first for your Beginner cooking level.'
@@ -32,28 +34,26 @@ const cookingSkillMessage = computed(() => {
 })
 
 function cookingSkillRank(recipe) {
+  // Lower rank sorts first, keeping suitable recipes ahead of less suitable difficulty levels.
   const skill = currentUser.value?.cookingSkill
   if (skill === 'Beginner') return recipe.difficulty === 'Easy' ? 0 : 1
   if (skill === 'Comfortable') return recipe.difficulty === 'Hard' ? 1 : 0
   return 0
 }
 
-// Core: filter recipes by search keyword + 5 filters
+// Match recipe metadata and ingredient names, then prioritize the user's cooking level.
 const filteredRecipes = computed(() => {
   const matchingRecipes = recipes.value.filter((recipe) => {
     const needle = search.value.trim().toLowerCase()
     const searchable = [recipe.title, recipe.cuisine,recipe.difficulty, ...recipe.ingredients, ...recipe.dietaryTags]
       .join(' ')
       .toLowerCase()
-      //  Price match
     const priceMatch =
       filters.value.price === 'all' ||
       (filters.value.price === 'under-4' ? recipe.estimatedCost < 4 : recipe.estimatedCost < 6)
-    // Cook time match
       const timeMatch =
       filters.value.cookTime === 'all' ||
       (filters.value.cookTime === 'under-20' ? recipe.cookTime < 20 : recipe.cookTime <= 30)
-    // All conditions must be satisfied (AND logic)
       return (
       (!needle || searchable.includes(needle)) &&
       priceMatch &&
@@ -68,7 +68,7 @@ const filteredRecipes = computed(() => {
       cookingSkillRank(first) - cookingSkillRank(second) || first.estimatedCost - second.estimatedCost,
   )
 })
-// Method: clear all filters ----------
+// Reset search and every filter to the unfiltered recipe library.
 const clearFilters = () => {
   search.value = ''
   filters.value = {
@@ -79,8 +79,7 @@ const clearFilters = () => {
     cookTime: 'all',
   }
 }
-// ---------- compute allergy warnings ----------
-// Logic: intersect user's allergies with recipe's allergen tags
+// Show warnings when a recipe's allergen tags match the student's profile.
 function allergyWarnings(recipe) {
   const allergies = currentUser.value?.allergies || []
   return (recipe.allergenTags || []).filter((tag) =>
@@ -115,7 +114,7 @@ onMounted(async () => {
             type="search"
             placeholder="Search recipes, ingredients or cuisines"
           />
-          <!-- "Add recipe" button only shows for contributors -->
+          <!-- Contributors can create content directly from the recipe catalogue. -->
           <RouterLink
             v-if="currentUser?.role === 'contributor'"
             class="btn btn-primary rounded-pill px-4"
@@ -127,7 +126,6 @@ onMounted(async () => {
       <div v-if="cookingSkillMessage" class="skill-note mb-4">
         <strong>Your cooking level:</strong> {{ currentUser.cookingSkill }}. {{ cookingSkillMessage }}
       </div>
-      <!-- 移动端：显示/隐藏筛选按钮 / Mobile: toggle filters button -->
       <button
         class="btn btn-outline-primary d-lg-none w-100 mb-3"
         type="button"
@@ -136,7 +134,7 @@ onMounted(async () => {
         {{ filterOpen ? 'Hide filters' : 'Show filters' }}
       </button>
       <div class="row g-4">
-        <!-- ----------  Left (3/12): Filters ---------- -->
+        <!-- The filter sidebar controls the same computed recipe result list as keyword search. -->
         <aside class="col-lg-3" :class="{ 'd-none d-lg-block': !filterOpen }">
           <div class="surface-card filter-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -145,13 +143,13 @@ onMounted(async () => {
                 Clear all
               </button>
             </div>
-              <!--  Filter 1: Price -->
+              <!-- Price filter applies the estimated per-serving recipe cost. -->
             <label class="form-label">Price per serving</label
             ><select v-model="filters.price" class="form-select mb-4">
               <option value="all">Any price</option>
               <option value="under-4">Under $4</option>
               <option value="under-6">Under $6</option></select>
-              <!-- Filter 2: Cuisine (options from data) -->
+              <!-- Cuisine options are generated from the catalogue. -->
             <label class="form-label">Cuisine</label
             ><select v-model="filters.cuisine" class="form-select mb-4">
               <option value="all">All cuisines</option>
@@ -159,7 +157,7 @@ onMounted(async () => {
                 {{ cuisine }}
               </option>
             </select>
-            <!--  Filter 3: Difficulty -->
+            <!-- Difficulty and cooking time make recipe effort explicit. -->
             <label class="form-label">Difficulty</label
             ><select v-model="filters.difficulty" class="form-select">
               <option value="all">Any difficulty</option>
@@ -167,7 +165,7 @@ onMounted(async () => {
               <option>Medium</option>
               <option>Hard</option>
             </select>
-            <!--  Filter 4: Dietary preference -->
+            <!-- Dietary tags can be filtered independently from a saved profile. -->
             <label class="form-label mt-4">Dietary preference</label>
             <select v-model="filters.dietary" class="form-select">
               <option value="all">Any preference</option>
@@ -175,7 +173,6 @@ onMounted(async () => {
                 {{ tag }}
               </option>
             </select>
-             <!--  Filter 5: Cooking time -->
             <label class="form-label mt-4">Cooking time</label>
             <select v-model="filters.cookTime" class="form-select">
               <option value="all">Any time</option>
@@ -184,7 +181,7 @@ onMounted(async () => {
             </select>
           </div>
         </aside>
-         <!-- ---------- Right (9/12): Recipe grid ---------- -->
+        <!-- Matching recipes occupy the larger main column. -->
         <div class="col-lg-9">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <p class="results-count mb-0">
@@ -195,11 +192,11 @@ onMounted(async () => {
           <div v-if="loading" class="py-5 text-center text-secondary">Loading recipes…</div>
           <div v-else-if="filteredRecipes.length" class="row g-4">
             <div v-for="recipe in filteredRecipes" :key="recipe.id" class="col-md-6 col-xl-4">
-              <!--  Pass recipe and allergy warnings -->
+              <!-- RecipeCard receives profile-specific allergen matches for a visible warning. -->
               <RecipeCard :recipe="recipe" :allergy-warnings="allergyWarnings(recipe)" />
             </div>
           </div>
-           <!-- No results: empty state -->
+          <!-- A reset action helps the student recover from an over-filtered search. -->
           <div v-else class="empty-state p-5">
             <h2 class="h5 fw-bold mb-2">No recipes match that search.</h2>
             <p class="mb-3">Try a broader keyword or clear your filters.</p>
@@ -221,7 +218,6 @@ onMounted(async () => {
 .intro {
   max-width: 44rem;
 }
-/* ===== 搜索面板：居中 + 最大宽度 */
 .search-panel {
   max-width: 52rem;
   margin-inline: auto;
@@ -237,26 +233,23 @@ onMounted(async () => {
   font-size: 0.88rem;
 }
 
-/* ===== 搜索框里的放大镜图标 */
 .input-group-text {
   color: var(--um-green);
   font-size: 1.35rem;
 }
 
-/* ===== 筛选面板标题  */
 .filter-card h2 {
   margin: 0;
   color: var(--um-ink);
   font-size: 1.1rem;
   font-weight: 800;
 }
-/* "Price per serving"、"Cuisine"、"Difficulty" */
+/* Labels remain visually consistent across every filter control. */
 .form-label {
   color: var(--um-ink);
   font-size: 0.82rem;
   font-weight: 750;
 }
-/* ===== 下拉框  ===== */
 .form-select {
   border-color: var(--um-line);
   border-radius: 0.7rem;

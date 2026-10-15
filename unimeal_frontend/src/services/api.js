@@ -1,17 +1,18 @@
 import axios from 'axios'
 import { ref } from 'vue'
 
-// 全局错误信息：任何请求失败，都会写进这个变量
-// 页面可以在顶部监听它，统一弹一个错误提�?
+// Shared request error state displayed by the application shell.
 export const apiError = ref('')
-// 创建 axios 实例（整个项目共用这一个实例）
+
+// One Axios client is shared by every API call. In development, Vite proxies
+// the default /api base path to the local FastAPI server.
 export const http = axios.create({
-  // 后端地址：优先读环境变量，没有就�? /api（开发时代理到后端）
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
   withCredentials: true,
 })
-// 响应拦截器：统一处理错误
+
+// Normalize failed API responses into a message that views can display.
 http.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -27,13 +28,14 @@ http.interceptors.response.use(
     return Promise.reject(error)
   },
 )
-// 辅助函数：把 axios �? { data, status, headers } 外壳剥掉
-// 只返回真正的业务数据，让页面代码更干净
+
+// Return only the response payload so views do not unwrap Axios data.
 const data = (request) => request.then((response) => response.data)
-// ---------- 所有后端接口的清单 ----------
+
+// Central API contract: views call these methods instead of constructing URLs themselves.
 export const api = {
   getDashboard: () => data(http.get('/dashboard')),
-  // ===== 食谱相关 =====
+  // Recipe catalogue, details, ingredients, uploads and contributor publishing.
   getRecipes: () => data(http.get('/recipes')),
   getRecipe: (id) => data(http.get(`/recipes/${id}`)),
   getIngredients: () => data(http.get('/ingredients')),
@@ -53,20 +55,20 @@ export const api = {
     return this.updateRecipe(id, { status: recipe.status === 'Published' ? 'Draft' : 'Published' })
   },
   deleteMyRecipe: (id) => data(http.delete(`/recipes/${id}`)),
- // ===== 评分 & 评论 =====
+  // Recipe feedback is stored independently from the contributor's recipe data.
   addRecipeRating: (id, rating) => data(http.post(`/recipes/${id}/ratings`, { rating })),
   addRecipeComment: (id, text) => data(http.post(`/recipes/${id}/comments`, { text })),
-  // ===== 饮食计划 =====
+  // Weekly meal-plan entries are the source for calendar and shopping-list data.
   getMealPlan: (weekStart) =>
     data(http.get('/meal-plan', { params: weekStart ? { week_start: weekStart } : {} })),
   saveMealPlanEntry: (entry) => data(http.post('/meal-plan/entries', entry)),
   removeMealPlanEntry: (id) => data(http.delete(`/meal-plan/entries/${id}`)),
-  // ===== 购物清单 =====
+  // Shopping list generation combines ingredients across the active meal plan.
   getShoppingList: () => data(http.post('/shopping-list/generate')),
   toggleShoppingItem: (id) => data(http.patch(`/shopping-list/items/${id}/purchased`)),
-   // ===== 预算 =====
+  // Budget summary is calculated by the backend for the current weekly period.
   getBudgetSummary: () => data(http.get('/budget-summary')),
-   // ===== 认证相关 =====
+  // Authentication and profile methods maintain the browser's session cookie.
   async getCurrentUser() {
     try {
       return await data(http.get('/auth/me'))
@@ -79,12 +81,12 @@ export const api = {
   register: (profile) => data(http.post('/auth/register', profile)),
   signOut: () => data(http.post('/auth/logout')),
   updateProfile: (profile) => data(http.put('/profile', profile)),
- // ===== 通知 =====
+  // Notifications provide both list content and read-state management.
   getNotifications: () => data(http.get('/notifications')),
   markNotificationRead: (id) => data(http.patch(`/notifications/${id}/read`)),
   markAllNotificationsRead: () => data(http.patch('/notifications/read-all')),
   clearReadNotifications: () => data(http.delete('/notifications/read')),
-  // ===== 管理�? =====
+  // Administrator-only moderation and reference-data management.
   getAdminOverview: () => data(http.get('/admin/overview')),
   updateReportStatus: (id, status) => data(http.patch(`/admin/reports/${id}`, { status })),
   createContentReport: (report) => data(http.post('/reports', report)),
@@ -94,10 +96,10 @@ export const api = {
   getIngredientCategories: () => data(http.get('/admin/ingredient-categories')),
   addIngredientCategory: (name) => data(http.post('/admin/ingredient-categories', { name })),
   deleteIngredientCategory: (id) => data(http.delete(`/admin/ingredient-categories/${id}`)),
-  // ===== 收藏 =====
+  // Students use saved recipes for their personal favourites collection.
   toggleSavedRecipe: (id) => data(http.post(`/recipes/${id}/saved`)),
   getSavedRecipeIds: () => data(http.get('/saved-recipes')),
-  // ===== AI =====
+  // AI-assisted natural-language recommendation and smart-search endpoints.
   getAiRecommendation: (query) =>
     data(http.post('/ai/recommendations', { query }, { timeout: 30000 })),
   smartSearch: (query) => data(http.post('/ai/smart-search', { query })),

@@ -8,9 +8,12 @@ const recipes = ref([])
 const loading = ref(true)
 const loadError = ref(false)
 const selectedWeekStart = ref('')
-const activeSlot = ref(null)   // 当前打开的格子（day + mealType + entry）
+// The calendar slot currently open in the recipe selection dialog.
+const activeSlot = ref(null)
+// Store the selected ID separately so the full recipe can be resolved from the loaded list.
 const selectedRecipeId = ref('')
-const plannedServings = ref(1)  // 这一餐做几人份，默认 1
+// A new meal defaults to one serving; existing entries keep their saved amount.
+const plannedServings = ref(1)
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner']
 const isEmptyPlan = computed(() => !plan.value.entries.length)
 const route = useRoute()
@@ -19,36 +22,39 @@ const requestedRecipeId = computed(() => {
   const value = Number(route.query.recipe)
   return Number.isInteger(value) && value > 0 ? value : null
 })
+// A recipe can be passed from its detail page through the calendar query string.
 const recipeToPlan = computed(() =>
   recipes.value.find((recipe) => recipe.id === requestedRecipeId.value) || null,
 )
-// Generate 7 consecutive days starting from plan.weekStartDate
+
+// Generate seven local calendar days without timezone-related date shifts.
 const weekDays = computed(() => {
-  // 把 "2026-09-18" 拆成 [2026, 9, 18] / Split date string into numbers
+  // Parse the API's YYYY-MM-DD value as local components to avoid timezone shifts.
   const [year, month, day] = plan.value.weekStartDate.split('-').map(Number)
-   // Array.from 生成 7 个元素，offset 从 0 到 6
   return Array.from({ length: 7 }, (_, offset) => {
-    // 注意 month - 1：JavaScript Date 的月份是 0-11
+    // JavaScript month indexes start at zero, so subtract one from the API month.
     const date = new Date(year, month - 1, day + offset)
     const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     return {
-      date: dateKey,  // "2026-09-18"
-      label: date.toLocaleDateString('en-NZ', { weekday: 'short' }), // "Mon"
-      number: date.getDate(),  // 18
-      isToday: date.toDateString() === new Date().toDateString(), // 是否今天
+      date: dateKey, // e.g. "2026-09-18"
+      label: date.toLocaleDateString('en-NZ', { weekday: 'short' }), // e.g. "Mon"
+      number: date.getDate(), // e.g. 18
+      // Highlight the current local day rather than comparing UTC timestamps.
+      isToday: date.toDateString() === new Date().toDateString(),
     }
   })
 })
-// selectedRecipeId 是"用户选了哪道菜的 ID"，selectedRecipe 是"把 ID 换成完整的数据对象"
 const selectedRecipe = computed(() =>
   recipes.value.find((recipe) => recipe.id === Number(selectedRecipeId.value)),
 )
 
+// Request the selected week from the backend, then use its returned week boundary.
 async function loadMealPlan(weekStart) {
-  plan.value = await api.getMealPlan(weekStart)// 传周起始日期
+  plan.value = await api.getMealPlan(weekStart)
   selectedWeekStart.value = plan.value.weekStartDate
 }
-// 把 Date 对象转成 'YYYY-MM-DD' 字符串。
+
+// Format calendar dates in the API's YYYY-MM-DD format.
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -74,43 +80,43 @@ onMounted(async () => {
     loading.value = false
   }
 })
-// ---------- 查某格有没有安排
 function entryFor(day, mealType) {
+  // Find the saved entry that belongs to this date and meal type.
   return plan.value.entries.find(
     (entry) => entry.plannedDate === day.date && entry.mealType === mealType,
   )
 }
-// ---------- 根据 entry 找食谱详情
 function recipeFor(entry) {
+  // Entries only contain a recipe ID, so resolve the display information here.
   return recipes.value.find((recipe) => recipe.id === entry?.recipeId)
 }
-// ---------- 点击格子打开弹窗
 function openSlot(day, mealType) {
-  const entry = entryFor(day, mealType)  // 先查这个格子有没有安排
-  activeSlot.value = { day, mealType, entry }  // 记录当前操作的格子
-  // When arriving from a recipe detail page, preselect that recipe in the first empty slot.
+  // Load the existing entry when editing, otherwise prepare a new empty slot.
+  const entry = entryFor(day, mealType)
+  activeSlot.value = { day, mealType, entry }
+  // Preselect a recipe passed from the recipe-detail page when the slot is empty.
   selectedRecipeId.value = entry?.recipeId || recipeToPlan.value?.id || ''
-  plannedServings.value = entry?.plannedServings || 1   // 已有安排则读取份数，否则默认 1
+  plannedServings.value = entry?.plannedServings || 1
 }
-// ---------- 保存安排
 async function saveSlot() {
-  if (!selectedRecipeId.value) return // 没选食谱直接返回
+  // The save button is disabled without a recipe, but keep this guard for safety.
+  if (!selectedRecipeId.value) return
   plan.value = await api.saveMealPlanEntry({
-    id: activeSlot.value.entry?.id, //  有 id 就是更新，没有就是新建
-    plannedDate: activeSlot.value.day.date, //  日期
-    mealType: activeSlot.value.mealType, //  餐次
-    recipeId: Number(selectedRecipeId.value),//  转成数字
-    plannedServings: plannedServings.value,  // 用户指定的份数
+    id: activeSlot.value.entry?.id,
+    plannedDate: activeSlot.value.day.date,
+    mealType: activeSlot.value.mealType,
+    recipeId: Number(selectedRecipeId.value),
+    plannedServings: plannedServings.value,
   })
   activeSlot.value = null
+  // Remove the query parameter once the recipe-detail shortcut has been saved.
   if (recipeToPlan.value) await router.replace('/calendar')
 }
 async function clearRecipeToPlan() {
   await router.replace('/calendar')
 }
-// ---------- 删除安排
 async function removeSlot() {
-  // Only call API if there's an existing entry
+  // Avoid a delete request when the selected slot has no persisted entry.
   if (activeSlot.value.entry) plan.value = await api.removeMealPlanEntry(activeSlot.value.entry.id)
   activeSlot.value = null
 }
@@ -142,6 +148,7 @@ async function removeSlot() {
         We could not load your meal plan. Please try again.
       </div>
       <template v-else>
+        <!-- A recipe selected on its detail page is preloaded for the next chosen slot. -->
         <section v-if="recipeToPlan" class="calendar-tip mb-4">
           <p class="eyebrow mb-1">Ready to plan</p>
           <strong>{{ recipeToPlan.title }} is selected.</strong>
@@ -155,11 +162,10 @@ async function removeSlot() {
           <strong>Click a +, choose a recipe and servings, then save.</strong>
           <span>Your shopping list updates automatically after you add meals.</span>
         </section>
+        <!-- The calendar is a seven-column grid and scrolls horizontally on narrow screens. -->
         <div class="surface-card calendar-wrap">
           <div class="calendar-grid">
-            <!-- 左上角空白格 -->
             <div class="calendar-corner"></div>
-             <!-- 7 个日期表头 -->
             <div
               v-for="day in weekDays"
               :key="day.date"
@@ -169,13 +175,9 @@ async function removeSlot() {
               <span>{{ day.label }}</span
               ><strong>{{ day.number }}</strong>
             </div>
-            <!-- 3 行（每行一个餐次） -->
             <template v-for="mealType in mealTypes" :key="mealType">
-              <!-- 左侧的餐次标签 -->
               <div class="meal-label">{{ mealType }}</div>
-              <!-- 7 个格子 -->
               <div v-for="day in weekDays" :key="`${mealType}-${day.date}`" class="calendar-slot">
-                <!-- 有安排：显示带图片的卡片 -->
                 <template v-if="entryFor(day, mealType)"
                   ><button class="planned-recipe" type="button" @click="openSlot(day, mealType)">
                     <img
@@ -184,7 +186,6 @@ async function removeSlot() {
                     /><span>{{ recipeFor(entryFor(day, mealType)).title }}</span>
                   </button>
                 </template>
-                 <!-- 没安排：显示 + 号 -->
                 <button
                   v-else
                   class="add-slot"
@@ -198,7 +199,7 @@ async function removeSlot() {
             >
           </div>
         </div>
-         <!-- @click.self：只有点遮罩层才关闭  -->
+        <!-- This modal handles both creating a meal and editing an existing meal. -->
         <div v-if="activeSlot" class="modal-backdrop-custom" @click.self="activeSlot = null">
           <section
             class="slot-modal surface-card"
@@ -213,14 +214,12 @@ async function removeSlot() {
               {{ activeSlot.day.label }} {{ activeSlot.day.number }} - {{ activeSlot.mealType }}
             </p>
             <h2 id="slot-title" class="form-heading">Choose a recipe</h2>
-            <!-- 下拉框 -->
             <select v-model="selectedRecipeId" class="form-select mt-3">
               <option value="">Select a recipe</option>
               <option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">
                 {{ recipe.title }} - ${{ recipe.estimatedCost.toFixed(2) }}
               </option>
             </select>
-            <!-- 选中食谱的预览 -->
             <div v-if="selectedRecipe" class="chosen-recipe mt-3">
               <img :src="selectedRecipe.imageUrl" :alt="selectedRecipe.title" />
               <div>
@@ -228,7 +227,6 @@ async function removeSlot() {
                 ><span>{{ selectedRecipe.cookTime }} min · {{ selectedRecipe.difficulty }}</span>
               </div>
             </div>
-            <!-- 份数输入：选中食谱后才显示 -->
             <div v-if="selectedRecipe" class="mt-3">
               <label class="form-label" for="servings">Servings</label>
               <input
@@ -240,7 +238,6 @@ async function removeSlot() {
                 max="10"
               />
             </div>
-            <!-- 删除 / 保存 -->
             <div class="d-flex justify-content-between gap-2 mt-4">
               <button
                 class="btn btn-link text-danger p-0"
@@ -266,7 +263,7 @@ async function removeSlot() {
 </template>
 
 <style scoped>
-/*  Calendar wrapper: horizontal scroll ===== */
+/* Keep the full seven-day grid usable on smaller screens. */
 .calendar-wrap {
   overflow-x: auto;
 }
@@ -287,14 +284,13 @@ async function removeSlot() {
 .calendar-tip span {
   color: var(--um-muted);
 }
-/*  Col 1: 6.5rem */
-/*  Cols 2-8: 7 cols, min 8.5rem */
+/* The first column holds meal labels; the remaining seven columns are days. */
 .calendar-grid {
   display: grid;
   grid-template-columns: 6.5rem repeat(7, minmax(8.5rem, 1fr));
   min-width: 66rem;
 }
-/* =====  Borders for grid children ===== */
+/* Draw a consistent table-like border around every grid cell. */
 .calendar-grid > * {
   border-bottom: 1px solid var(--um-line);
   border-right: 1px solid var(--um-line);
@@ -302,7 +298,7 @@ async function removeSlot() {
 .calendar-corner {
   background: #fbfaf6;
 }
-/* =====  Day headings ===== */
+/* Day headings and the current-day highlight. */
 .day-heading {
   display: flex;
   min-height: 5.25rem;
@@ -312,14 +308,12 @@ async function removeSlot() {
   gap: 0.15rem;
   background: #fbfaf6;
 }
-/* 今天的表头高亮 */
 .day-heading.today {
   background: var(--um-green-light);
 }
 .day-heading.today strong {
   color: var(--um-coral);
 }
-/* "Mon" / "Tue" 这些星期的缩写 ,"Breakfast" / "Lunch" / "Dinner" */
 .day-heading span,
 .meal-label {
   color: var(--um-muted);
@@ -327,12 +321,11 @@ async function removeSlot() {
   font-weight: 750;
   text-transform: uppercase;
 }
-/* "18" / "19" 这些日期数字 */
 .day-heading strong {
   color: var(--um-green);
   font-size: 1.25rem;
 }
-/* =====  Meal labels ===== */
+/* Meal-type labels on the left edge of the grid. */
 .meal-label {
   display: flex;
   align-items: center;
@@ -344,7 +337,7 @@ async function removeSlot() {
   padding: 0.5rem;
   background: #fff;
 }
-/* =====  "+" button: empty slot ===== */
+/* Empty slots use a dashed button to invite the user to add a meal. */
 .add-slot {
   display: flex;
   width: 100%;
@@ -363,12 +356,12 @@ async function removeSlot() {
   color: var(--um-green);
   background: #f5f8f2;
 }
-/* =====  Planned recipe card ===== */
+/* A planned recipe appears as a compact, clickable recipe card. */
 .planned-recipe {
   display: block;
   width: 100%;
   overflow: hidden;
-  border: 0; /*button 默认有边框，去掉 */
+  border: 0;
   border-radius: 0.75rem;
   color: var(--um-ink);
   background: #f3f6f0;
@@ -381,16 +374,14 @@ async function removeSlot() {
   height: 3.9rem;
   object-fit: cover;
 }
-/* 卡片底部那行菜名 */
 .planned-recipe span {
-  display: block;  /* 独占一行*/
+  display: block;
   padding: 0.45rem;
 }
-/* ===== 弹窗遮罩层 / Modal backdrop ===== */
 .modal-backdrop-custom {
   position: fixed;
-  z-index: 1050;  /*盖在所有内容上面（Bootstrap 弹窗默认 1050）*/
-  inset: 0;  /*上下左右都是 0，铺满整个屏幕*/
+  z-index: 1050;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -411,12 +402,10 @@ async function removeSlot() {
   background: transparent;
   font-size: 1.25rem;
 }
-/* 弹窗里的 "Choose a recipe" */
 .form-heading {
   color: var(--um-ink);
   font-weight: 800;
 }
-/* 弹窗里选完食谱后出现的小预览卡片（图片 + 标题 + 时间） */
 .chosen-recipe {
   display: flex;
   gap: 0.75rem;
@@ -431,13 +420,10 @@ async function removeSlot() {
   border-radius: 0.5rem;
   object-fit: cover;
 }
-/* 预览卡片里的标题和时间。
-作用：让标题和时间各占一行 */
 .chosen-recipe strong,
 .chosen-recipe span {
   display: block;
 }
-/* 预览卡片里的 "35 min · Medium" */
 .chosen-recipe span {
   color: var(--um-muted);
   font-size: 0.8rem;

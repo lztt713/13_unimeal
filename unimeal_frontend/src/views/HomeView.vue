@@ -1,5 +1,5 @@
 <script setup>
-// Featured meals data (hardcoded static data, since home page is public)
+// Public homepage examples are static so visitors can understand the product before logging in.
 const featuredMeals = [
   {
     title: 'Creamy Tomato Pasta',
@@ -63,7 +63,7 @@ const featuredMeals = [
           <RouterLink class="btn btn-outline-primary" to="/login">Log in to explore</RouterLink>
         </div>
         <div class="row g-3">
-           <!-- Loop through featuredMeals array to render 3 recipe cards -->
+          <!-- Render the public example meals from one small data array. -->
           <div v-for="meal in featuredMeals" :key="meal.title" class="col-md-4">
             <article class="featured-meal h-100">
               <img :src="meal.imageUrl" :alt="meal.title" />
@@ -105,23 +105,20 @@ const featuredMeals = [
           </div>
         </div>
       </section>
-      <!-- Section 2: Four feature cards (whole card clickable → /login) -->
+      <!-- Feature cards introduce the core post-login actions and link visitors to login. -->
       <section class="mt-5">
         <h2 class="h3 fw-bold">What can you do with UniMeal?</h2>
         <div class="row g-3 mt-1">
 
           <div class="col-md-6 col-lg-3">
-             <!-- position-relative 是 stretched-link 生效的必要条件 -->
             <article class="card feature-card feature-1 h-100 position-relative">
               <div class="card-body">
-                 <!-- 卡片内容：编号、标题、描述 -->
                 <span class="feature-number">01</span>
                 <h3 class="h5">Find recipes</h3>
                 <p class="card-text text-secondary">
                   Search recipes by cuisine, cost, difficulty, and dietary preference.
                 </p>
                 <span class="card-arrow">→</span>
-                 <!-- stretched-link 让它铺满整张卡片 -->
                 <RouterLink class="stretched-link" to="/login">
                 </RouterLink>
               </div>
@@ -136,7 +133,6 @@ const featuredMeals = [
                   Choose meals for each day of the week and update the plan when needed.
                 </p>
                 <span class="card-arrow">→</span>
-                 <!-- stretched-link 让它铺满整张卡片 -->
                 <RouterLink class="stretched-link" to="/login">
                 </RouterLink>
               </div>
@@ -151,7 +147,6 @@ const featuredMeals = [
                   Combine ingredients from planned recipes into one list.
                 </p>
                 <span class="card-arrow">→</span>
-                 <!-- stretched-link 让它铺满整张卡片 -->
                 <RouterLink class="stretched-link" to="/login">
                 </RouterLink>
               </div>
@@ -166,7 +161,6 @@ const featuredMeals = [
                   Compare estimated food spending with your weekly budget.
                 </p>
                 <span class="card-arrow">→</span>
-                 <!-- stretched-link 让它铺满整张卡片 -->
                 <RouterLink class="stretched-link" to="/login">
                 </RouterLink>
               </div>
@@ -177,7 +171,7 @@ const featuredMeals = [
 
 
 
-        <!--Role cards (matching the 3 user roles in the brief) -->
+      <!-- Role cards explain which workflows are available to each platform user type. -->
       <section class="mt-5 border-top pt-4">
         <h2 class="h3 fw-bold">Who is UniMeal for?</h2>
         <div class="row g-3 mt-1">
@@ -214,22 +208,20 @@ const featuredMeals = [
 
 
 <style scoped>
-/* .home-page {
-  background: var(--um-cream);
-} */
- /* ===== 首页所有标题统一深灰色 ===== */
+/* Shared heading colour keeps homepage sections visually consistent. */
 .home-page h1,
 .home-page h2,
 .home-page h3 {
   color: #212529;
 }
-/* ===== 首页所有图片：最高 20rem，宽度 100%，裁切不变形 ===== */
 .home-page img {
+  /* All homepage images crop rather than distort within their containers. */
   max-height: 20rem;
   width: 100%;
   object-fit: cover;
 }
 .home-page .hero-image {
+  /* The hero stays prominent without dominating the first screen on smaller devices. */
   display: block;
   width: 100%;
   min-height: 15rem;
@@ -242,12 +234,14 @@ const featuredMeals = [
   max-width: 42rem;
 }
 .journey-step {
+  /* Numbered journey cards explain the intended first-time student flow. */
   padding: 1.4rem;
   border: 1px solid var(--um-line);
   border-radius: 0.75rem;
   background: #fff;
 }
 .journey-step span {
+  /* The step number is a high-contrast visual anchor for each journey card. */
   display: inline-flex;
   width: 1.9rem;
   height: 1.9rem;
@@ -266,16 +260,16 @@ const featuredMeals = [
   color: var(--um-muted);
 }
 .card {
-  /* ===== 通用卡片：浅灰绿边框 + 圆角 + 无阴影 ===== */
+  /* Feature cards use a lighter treatment than primary calls to action. */
   border-color: var(--um-line);
   border-radius: 0.375rem;
   box-shadow: none;
 }
-/* ===== 功能卡片：顶部装饰线 + 悬停上浮动画 ===== */
 .feature-card {
+  /* A small hover lift signals that the whole feature card is clickable. */
   border-top: 3px solid var(--um-green);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;/* 鼠标变手型，提示可点击  */
+  cursor: pointer;
 }
 .feature-card:hover {
   transform: translateY(-4px);
@@ -284,8 +278,8 @@ const featuredMeals = [
 .feature-card .card-body {
   padding: 1.25rem;
 }
-/* 右下角的箭头*/
 .card-arrow {
+  /* Arrow stays in a consistent bottom-right position across cards of different text length. */
   position: absolute;
   bottom: 1rem;
   right: 1.25rem;
@@ -293,7 +287,7 @@ const featuredMeals = [
   font-size: 1.2rem;
   font-weight: 700;
 }
-/* Feature number badge (01, 02, 03, 04) */
+/* Feature number badges give each capability a clear visual sequence. */
 .feature-number {
   display: inline-block;
   margin-bottom: 0.8rem;
@@ -329,6 +323,7 @@ const featuredMeals = [
   background: #fae6df;
 }
 .role-card {
+  /* Role cards use an accent border to differentiate user groups at a glance. */
   padding: 1rem 1.1rem;
   border-left: 3px solid var(--um-green);
   background: #fff;
@@ -342,7 +337,7 @@ const featuredMeals = [
 .role-admin {
   border-left-color: var(--um-coral);
 }
-/* Featured meal card: border + rounded corners */
+/* Public example meal cards mirror the product's recipe-card visual language. */
 .featured-meal {
   overflow: hidden;
   border: 1px solid var(--um-line);
