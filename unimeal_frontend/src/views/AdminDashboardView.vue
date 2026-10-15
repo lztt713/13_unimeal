@@ -2,10 +2,13 @@
 import { onMounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../services/api'
-const overview = ref(null)   // 整个仪表盘数据
-const updating = ref(null)  // 正在操作的举报 ID（用于禁用按钮）
+// The overview contains dashboard statistics and the report review queue.
+const overview = ref(null)
+// Store the report currently being updated so only its actions are disabled.
+const updating = ref(null)
 onMounted(async () => {
-  overview.value = await api.getAdminOverview() // 拿统计 + 举报列表
+  // The backend returns the statistics and reports in one admin-only request.
+  overview.value = await api.getAdminOverview()
 })
 
 const openReports = computed(() =>
@@ -13,11 +16,12 @@ const openReports = computed(() =>
 )
 
 async function updateStatus(reportId, status) {
-  updating.value = reportId   // 标记"正在处理这条"
+  // Prevent duplicate status updates while this specific report is in flight.
+  updating.value = reportId
   try {
     overview.value = await api.updateReportStatus(reportId, status)
   } finally {
-    updating.value = null   // 解除标记
+    updating.value = null
   }
 }
 </script>
@@ -57,7 +61,7 @@ async function updateStatus(reportId, status) {
             </div>
             <span class="text-secondary small">{{ overview.reports.length }} reports</span>
           </div>
-          <!-- table-responsive：窄屏时横向滚动 -->
+          <!-- Preserve table usability on narrow screens with horizontal scrolling. -->
           <div class="table-responsive">
             <table class="table align-middle mb-0">
               <thead>
@@ -71,8 +75,8 @@ async function updateStatus(reportId, status) {
               </thead>
               <tbody>
                 <tr v-for="report in openReports" :key="report.id">
-                  <!-- 目标：标题 + 类型·时间  -->
                   <td>
+                    <!-- The target title is paired with its content type and report date. -->
                     <strong>{{ report.targetTitle }}</strong
                     ><small>{{ report.targetType }} · {{ report.createdAt }}</small>
                   </td>
@@ -85,8 +89,8 @@ async function updateStatus(reportId, status) {
                       >{{ report.status }}</span
                     >
                   </td>
-                  <!-- 操作按钮组 -->
                   <td class="text-end">
+                    <!-- Moderation actions update the report and refresh the supplied overview. -->
                     <div class="btn-group btn-group-sm">
                       <button
                         class="btn btn-outline-primary"
@@ -120,13 +124,13 @@ async function updateStatus(reportId, status) {
 </template>
 
 <style scoped>
-/* 卡片顶部的小字 */
+/* Small statistic labels establish hierarchy above the dashboard totals. */
 .stat-label {
   color: var(--um-muted);
   font-size: 0.86rem;
   font-weight: 700;
 }
-/* 统计卡片的大数字 */
+/* Large values make the four high-level moderation counts easy to scan. */
 .stat-value {
   display: block;
   margin: 0.5rem 0;
@@ -134,30 +138,30 @@ async function updateStatus(reportId, status) {
   font-size: 2.35rem;
   letter-spacing: -0.05em;
 }
-/* 卡片底部的 "+3 this week" 这些小字 */
+/* The note supplies a concise change or context for each statistic. */
 .stat-note {
   color: var(--um-coral);
   font-size: 0.78rem;
   font-weight: 750;
 }
-/* "Reported content" 这个标题 */
+/* Section heading for the report-review table. */
 .admin-heading {
   color: var(--um-ink);
   font-size: 1.45rem;
   font-weight: 800;
 }
+/* Uppercase table headers distinguish the column labels from reported content. */
 .table th {
   color: var(--um-muted);
   font-size: 0.75rem;
   text-transform: uppercase;
 }
-/* 表头（TARGET、REPORTER、REASON... */
 .table td {
   padding: 1rem 0.5rem;
   color: var(--um-ink);
 }
 .table small {
-  display: block;  /* 强制换行 */
+  display: block;
   color: var(--um-muted);
   margin-top: 0.2rem;
 }

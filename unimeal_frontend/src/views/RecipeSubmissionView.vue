@@ -6,11 +6,13 @@ import { api } from '../services/api'
 const router = useRouter()
 const route = useRoute()
 const ingredients = ref([])
+// Equipment comes from reference data so contributors cannot create inconsistent values.
 const equipmentOptions = ref([])
 const submitted = ref(false)
 const submitting = ref(false)
 const errors = ref([])
-// ---------- Image upload state ----------
+
+// Local image state supports preview and validation before uploading.
 const imageInput = ref(null)
 const selectedImage = ref(null)
 const localPreviewUrl = ref('')
@@ -32,7 +34,7 @@ const form = ref({
   steps: [''],
 })
 const tagOptions = ['Vegetarian', 'Vegan', 'Gluten Free', 'High Protein', 'Budget']
-// 优先本地图片 → 其次 URL → 最后默认占位图
+// Preview priority is local file, then entered URL, then a neutral fallback image.
 const previewUrl = computed(
   () =>
     localPreviewUrl.value ||
@@ -48,12 +50,10 @@ onMounted(async () => {
   ])
   ingredients.value = ingredientData
   equipmentOptions.value = equipmentData
-   // 如果不是编辑模式，直接结束
+  // Reuse the same form for editing an existing contributor recipe.
   if (!route.query.edit) return
-  // 编辑模式：拿要编辑的食谱数据
   const recipe = await api.getRecipe(route.query.edit)
   if (!recipe) return
-  // 把食谱数据填充到表单
   form.value = {
     title: recipe.title,
     imageUrl: recipe.imageUrl,
@@ -74,25 +74,29 @@ onMounted(async () => {
   }
 })
 function addIngredient() {
+  // New rows start with the common gram unit until an ingredient supplies a default.
   form.value.ingredients.push({ ingredientId: '', quantity: '', unit: 'g' })
 }
 function removeIngredient(index) {
-  // 至少保留一行
+  // Keep at least one row so the recipe form always prompts for an ingredient.
   if (form.value.ingredients.length > 1) form.value.ingredients.splice(index, 1)
 }
 function setIngredientUnit(row) {
-   // 用户选了食材后，自动填入它的默认单位
+  // Selecting an ingredient copies its database default unit into the editable row.
   const item = ingredients.value.find((ingredient) => ingredient.id === Number(row.ingredientId))
   if (item) row.unit = item.defaultUnit
 }
 function addStep() {
+  // Method steps are editable as a simple ordered text array.
   form.value.steps.push('')
 }
 function removeStep(index) {
+  // Keep one step input available even after a contributor removes a row.
   if (form.value.steps.length > 1) form.value.steps.splice(index, 1)
 }
 
 function clearSelectedImage() {
+  // Release temporary browser URLs to avoid retaining local image memory.
   if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value)
   localPreviewUrl.value = ''
   selectedImage.value = null
@@ -109,30 +113,26 @@ function selectImage(event) {
   const file = event.target.files?.[0]
   if (!file) return
   imageError.value = ''
-  // 类型校验
+  // Validate type and size before creating a preview or uploading the file.
   if (!acceptedImageTypes.includes(file.type)) {
     imageError.value = 'Choose a JPG, PNG, or WEBP image.'
     event.target.value = ''
     return
   }
-  // 大小校验
   if (file.size > maxImageSize) {
     imageError.value = 'Choose an image smaller than 5 MB.'
     event.target.value = ''
     return
   }
-  // 释放旧的 blob URL（如果之前选过图片）
   if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value)
-  // 保存文件 + 创建 blob URL 用于预览
   selectedImage.value = file
   localPreviewUrl.value = URL.createObjectURL(file)
 }
-// 组件销毁时清理 blob URL
 onBeforeUnmount(clearSelectedImage)
 
 async function submitRecipe() {
-    // ---------- 前端校验 ----------
   errors.value = []
+  // Validate client-side fields for immediate contributor feedback.
   if (!form.value.title.trim()) errors.value.push('Recipe title is required.')
   if (!form.value.cuisine.trim()) errors.value.push('Cuisine is required.')
   if (Number(form.value.servings) < 1) errors.value.push('Servings must be at least 1.')
@@ -141,7 +141,7 @@ async function submitRecipe() {
   if (form.value.steps.some((step) => !step.trim()))
     errors.value.push('Each method step needs text.')
   if (errors.value.length) return
-  // ---------- 组装食材详情 ----------
+  // Build rich ingredient rows once, then derive the smaller search-index names from them.
   const details = form.value.ingredients.map((row) => ({
     ingredientId: Number(row.ingredientId),
     name: ingredients.value.find((item) => item.id === Number(row.ingredientId)).name,
@@ -150,16 +150,13 @@ async function submitRecipe() {
   }))
   const payload = {
     ...form.value,
-     // 把字符串转成数字（input 拿到的都是字符串）
     prepTime: Number(form.value.prepTime),
     cookTime: Number(form.value.cookTime),
     servings: Number(form.value.servings),
     estimatedCost: Number(form.value.estimatedCost),
-     // 冗余字段：食材名数组（给搜索用）
+    // Ingredient names support text search; detailed rows preserve quantities and units.
     ingredients: details.map((item) => item.name.toLowerCase()),
-     // 完整食材信息（含 ID、数量、单位）
     ingredientDetails: details,
-    // 步骤文本去空格
     steps: form.value.steps.map((step) => step.trim()),
   }
   submitting.value = true
@@ -195,6 +192,7 @@ async function submitRecipe() {
       <form class="row g-4 mt-1" @submit.prevent="submitRecipe">
         <div class="col-lg-8">
           <section class="surface-card p-4 p-md-5">
+            <!-- Core fields are validated before the contributor's recipe is sent to the API. -->
             <h2 class="form-heading">Recipe details</h2>
             <div v-if="errors.length" class="alert alert-danger">
               <ul class="mb-0">
@@ -261,6 +259,7 @@ async function submitRecipe() {
               </div>
             </div>
             <fieldset class="mt-4">
+              <!-- Multiple dietary tags can be selected for search and student filtering. -->
               <legend class="form-label mb-2">Dietary tags</legend>
               <div class="d-flex flex-wrap gap-2">
                 <label v-for="tag in tagOptions" :key="tag" class="tag-choice"
@@ -270,6 +269,7 @@ async function submitRecipe() {
               </div>
             </fieldset>
             <fieldset v-if="equipmentOptions.length" class="mt-4">
+              <!-- Equipment is optional until the backend exposes its reference-data endpoint. -->
               <legend class="form-label mb-2">Required equipment</legend>
               <div class="d-flex flex-wrap gap-2">
                 <label v-for="equipment in equipmentOptions" :key="equipment.id" class="tag-choice">
@@ -280,6 +280,7 @@ async function submitRecipe() {
             </fieldset>
           </section>
           <section class="surface-card p-4 p-md-5 mt-4">
+            <!-- Ingredient rows store the ingredient ID, quantity and display unit together. -->
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h2 class="form-heading mb-0">Ingredients</h2>
               <button
@@ -339,6 +340,7 @@ async function submitRecipe() {
             </div>
           </section>
           <section class="surface-card p-4 p-md-5 mt-4">
+            <!-- Contributors can add or remove ordered method steps without leaving the form. -->
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h2 class="form-heading mb-0">Method</h2>
               <button
@@ -370,9 +372,9 @@ async function submitRecipe() {
         </div>
         <aside class="col-lg-4">
           <section class="surface-card p-4 sticky-lg-top preview-card">
+            <!-- Preview local uploads before submitting and retain the optional URL alternative. -->
             <h2 class="form-heading">Image preview</h2>
             <img class="preview-image" :src="previewUrl" alt="Recipe preview" />
-            <!-- 隐藏的 file input（用 label 触发） -->
             <input
               id="image-file"
               ref="imageInput"
@@ -381,7 +383,7 @@ async function submitRecipe() {
               accept="image/jpeg,image/png,image/webp"
               @change="selectImage"
             />
-            <!-- ②用 label 假装是一个按钮 -->
+            <!-- A styled label triggers the visually hidden native file input. -->
             <label class="file-picker" for="image-file">Choose image</label>
             <span class="file-name">{{ selectedImage ? selectedImage.name : 'No file selected' }}</span>
             <p v-if="selectedImage" class="small text-secondary mt-2 mb-0">
@@ -423,43 +425,43 @@ async function submitRecipe() {
 </template>
 
 <style scoped>
-/* ===== 提交页面标题区 ===== */
+/* The introduction line length stays readable rather than spanning a wide desktop screen. */
 .submission-intro {
   max-width: 46rem;
 }
 
-/* ===== 表单标题 ===== */
 .form-heading {
+  /* Section headings distinguish the form's logical recipe sections. */
   color: var(--um-ink);
   font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
 
-/* ===== 表单标签 ===== */
 .form-label {
+  /* Labels use consistent small, bold text above inputs. */
   color: var(--um-ink);
   font-size: 0.82rem;
   font-weight: 750;
 }
 
-/* ===== 表单输入框 + 下拉框（通用样式） ===== */
 .form-control,
 .form-select {
+  /* Text inputs and selects use the shared rounded form-control styling. */
   border-color: var(--um-line);
   border-radius: 0.7rem;
   padding: 0.65rem 0.8rem;
 }
 
-/* ===== 表单控件聚焦状态 ===== */
 .form-control:focus,
 .form-select:focus {
+  /* The focus ring gives keyboard users a clear brand-coloured indicator. */
   border-color: var(--um-green);
   box-shadow: 0 0 0 0.2rem rgba(49, 87, 44, 0.12);
 }
 
-/* ===== 饮食标签选择（"药丸"样式） ===== */
 .tag-choice {
+  /* Dietary and equipment selections share compact checkbox-pill styling. */
   border: 1px solid var(--um-line);
   border-radius: 99px;
   padding: 0.38rem 0.65rem;
@@ -467,22 +469,21 @@ async function submitRecipe() {
   cursor: pointer;
 }
 
-/* ===== 标签被选中时的状态 ===== */
 
-/* ===== 食材行（除第一个外，上面加分割线） ===== */
 .ingredient-row + .ingredient-row {
+  /* Later ingredient rows are visually separated from the preceding row. */
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--um-line);
 }
 
-/* ===== 步骤行（上下间距） ===== */
 .step-row + .step-row {
+  /* Add vertical rhythm between consecutive method steps. */
   margin-top: 1rem;
 }
 
-/* ===== 步骤序号圆圈 ===== */
 .step-row > span {
+  /* Step numbers use the same circular cue as the recipe-detail method view. */
   display: flex;
   width: 2rem;
   height: 2rem;
@@ -495,13 +496,13 @@ async function submitRecipe() {
   font-weight: 800;
 }
 
-/* ===== 预览卡片（粘性定位） ===== */
 .preview-card {
+  /* The sidebar stays visible beside a long form on larger screens. */
   top: 6rem;
 }
 
-/* ===== 预览图片（固定比例 + 圆角） ===== */
 .preview-image {
+  /* A fixed crop makes URL and local-file previews visually comparable. */
   width: 100%;
   height: 14rem;
   border-radius: 0.8rem;
@@ -550,7 +551,6 @@ async function submitRecipe() {
   margin-bottom: 0.45rem;
 }
 
-/* ===== 移动端适配（超小屏） ===== */
 @media (max-width: 575.98px) {
   .ingredient-row .btn-link {
     font-size: 0.7rem;

@@ -6,23 +6,27 @@ import { api } from '../services/api'
 const props = defineProps({ id: { type: String, required: true } })
 const recipe = ref(null)
 const loading = ref(true)
-const selectedRating = ref(0)  // 用户当前选的分数
-const ratingSaved = ref(false) // 是否刚评分成功
-const saved = ref(false)  // 是否已收藏
+// Rating state controls the selected score and the short confirmation message.
+const selectedRating = ref(0)
+const ratingSaved = ref(false)
+// Saved recipes are available to students, not recipe contributors.
+const saved = ref(false)
 const user = ref(null)
 
-const reportOpen = ref(false) // 举报弹窗是否打开
+// One modal supports reporting either this recipe or an individual comment.
+const reportOpen = ref(false)
 const reportReason = ref('')
 const reportMessage = ref('')
-const commentText = ref('')  // 评论输入框内容
-const commentMessage = ref('')  // 评论反馈消息
+// Comment fields keep draft input separate from API success/error feedback.
+const commentText = ref('')
+const commentMessage = ref('')
 const commentError = ref(false)
 
-const reportTarget = ref(null)        // null=举报食谱，有值=举报该评论
-const reportCustomText = ref('')      // "Other concern" 时的补充文字
+// A null target means the report concerns the recipe; otherwise it concerns a comment.
+const reportTarget = ref(null)
+const reportCustomText = ref('')
 
-
-// 评论举报的选项列表
+// Report reasons differ because recipe and comment moderation have different contexts.
 const commentReasons = [
   'Spam or advertising',
   'Offensive or inappropriate language',
@@ -31,7 +35,6 @@ const commentReasons = [
   'Other concern',
 ]
 
-// 食谱举报的选项列表
 const recipeReasons = [
   'Incorrect recipe information',
   'Missing allergy warning',
@@ -39,9 +42,10 @@ const recipeReasons = [
   'Other concern',
 ]
 
-// 总时间 = 准备 + 烹饪
+// Total preparation time is calculated for display rather than stored redundantly.
 const totalTime = computed(() => (recipe.value ? recipe.value.prepTime + recipe.value.cookTime : 0))
-// 过敏警告：用户过敏原 ∩ 食谱过敏原
+
+// Compare allergen tags case-insensitively with the current student's profile.
 const allergyWarnings = computed(() => {
   const allergies = user.value?.allergies || []
   return (recipe.value?.allergenTags || []).filter((tag) =>
@@ -56,8 +60,8 @@ onMounted(async () => {
   ])
   recipe.value = recipeData
   user.value = currentUser
-  // 学生才拉收藏状态
   if (currentUser?.role === 'student') {
+    // Saving recipes is a student-only action.
     const savedIds = await api.getSavedRecipeIds()
     saved.value = savedIds.includes(Number(props.id))
   }
@@ -65,39 +69,39 @@ onMounted(async () => {
 })
 
 async function rateRecipe(rating) {
-  selectedRating.value = rating  // 点亮星星
+  // Update the visible stars immediately, then replace recipe statistics from the API response.
+  selectedRating.value = rating
   recipe.value = await api.addRecipeRating(props.id, rating)
-  ratingSaved.value = true  // 显示"已保存"
+  ratingSaved.value = true
 }
-// 收藏切换
 async function toggleSaved() {
+  // The backend returns the source-of-truth saved state after toggling favourites.
   saved.value = (await api.toggleSavedRecipe(props.id)).saved
 }
 
-// 打开"举报食谱"弹窗（清空之前的输入）
 function openReportRecipe() {
+  // Clear prior modal values before opening a report about the recipe itself.
   reportTarget.value = null
   reportReason.value = ''
   reportCustomText.value = ''
   reportOpen.value = true
 }
 
-// 打开"举报评论"弹窗
 function openReportComment(comment) {
-  reportTarget.value = comment  // 记录要举报的评论
+  // Save the chosen comment so the shared reporting form can build the correct payload.
+  reportTarget.value = comment
   reportReason.value = ''
   reportCustomText.value = ''
   reportOpen.value = true
 }
 async function submitReport() {
   try {
-    // 如果选了 "Other concern" 且有补充文字，拼接到 reason 里
     const finalReason =
       reportReason.value === 'Other concern' && reportCustomText.value.trim()
         ? `Other concern: ${reportCustomText.value.trim()}`
         : reportReason.value
 
-    // 根据 reportTarget 决定举报食谱还是评论
+    // Use one endpoint for reports while preserving the reported content type.
     const payload = reportTarget.value
       ? {
           targetType: 'Comment',
@@ -114,7 +118,7 @@ async function submitReport() {
     reportMessage.value = 'Thank you. Your report has been sent to the administrator.'
     reportOpen.value = false
 
-    // 清空所有状态
+    // Reset all report state so a later report starts with an empty form.
     reportReason.value = ''
     reportCustomText.value = ''
     reportTarget.value = null
@@ -124,7 +128,7 @@ async function submitReport() {
 }
 
 async function submitComment() {
-  // 空校验
+  // Avoid sending an empty comment to the API.
   if (!commentText.value.trim()) {
     commentError.value = true
     commentMessage.value = 'Please write a comment before submitting.'
@@ -156,26 +160,26 @@ async function submitComment() {
         <RouterLink class="back-link" to="/recipes">Back to recipe library</RouterLink>
         <article class="surface-card overflow-hidden mt-3">
           <div class="row g-0">
-             <!-- Left: image -->
+            <!-- The large image gives the recipe immediate visual context. -->
             <div class="col-lg-6 detail-image-wrap">
               <img class="recipe-image" :src="recipe.imageUrl" :alt="recipe.title" />
             </div>
-             <!-- Right: info + buttons -->
+            <!-- Core recipe information and role-aware actions sit beside the image. -->
             <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-center">
-               <!-- Cuisine + dietary tags -->
+              <!-- Cuisine and dietary tags are concise metadata for browsing decisions. -->
               <div class="d-flex flex-wrap gap-2 mb-3">
                 <span class="soft-badge">{{ recipe.cuisine }}</span
                 ><span v-for="tag in recipe.dietaryTags" :key="tag" class="detail-tag">{{
                   tag
                 }}</span>
               </div>
-              <!-- Title + description -->
+              <!-- The cost shown here is per serving, not the full recipe cost. -->
               <h1 class="detail-title">{{ recipe.title }}</h1>
               <p class="detail-copy">
                 A practical student recipe with clear portions, simple ingredients and estimated
                 cost per serving.
               </p>
-              <!-- Three meta: time / cost / servings -->
+              <!-- Time, per-serving cost and servings form the key planning metadata. -->
               <div class="row text-center g-2 my-3">
                 <div class="col-4">
                   <strong>{{ totalTime }} min</strong><span>Total time</span>
@@ -189,7 +193,7 @@ async function submitComment() {
                   ><span>Servings</span>
                 </div>
               </div>
-              <!-- Rating + action buttons -->
+              <!-- Students can plan or save; every signed-in role can report content. -->
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-2">
                   <span class="recipe-rating">{{ recipe.rating }} / 5</span
@@ -216,11 +220,12 @@ async function submitComment() {
           </div>
         </article>
 
-        <!-- Allergy warning: only shows if user's and recipe's allergens intersect -->
+        <!-- Warn only when normalised recipe allergens match the student's saved allergies. -->
         <div v-if="allergyWarnings.length" class="alert alert-warning mt-4 mb-0">
           <strong>Allergy warning:</strong> this recipe contains {{ allergyWarnings.join(', ') }}.
         </div>
         <div v-if="recipe.requiredEquipment?.length" class="surface-card p-3 mt-4">
+          <!-- Required equipment is shown when the recipe/database supplies it. -->
           <strong class="me-2">Required equipment:</strong>
           <span v-for="equipment in recipe.requiredEquipment" :key="equipment.id" class="detail-tag me-2">
             {{ equipment.name }}
@@ -228,7 +233,7 @@ async function submitComment() {
         </div>
 
         <div class="row g-4 mt-1">
-            <!-- Left: ingredients -->
+          <!-- Ingredient quantities use the recipe's stored serving size. -->
           <div class="col-lg-4">
             <section class="surface-card p-4 h-100">
               <h2 class="section-heading">Ingredients</h2>
@@ -241,7 +246,7 @@ async function submitComment() {
               </ul>
             </section>
           </div>
-          <!-- Right: method -->
+          <!-- Method steps are numbered separately from their text for clearer scanning. -->
           <div class="col-lg-8">
             <section class="surface-card p-4 p-md-5">
               <h2 class="section-heading">Method</h2>
@@ -254,7 +259,7 @@ async function submitComment() {
             </section>
           </div>
         </div>
-            <!-- Rating section: 5 circular buttons-->
+        <!-- Five buttons make the one-to-five rating scale explicit and keyboard accessible. -->
 
         <section class="surface-card p-4 p-md-5 mt-4">
           <div class="row g-4 align-items-center">
@@ -268,7 +273,6 @@ async function submitComment() {
                 role="group"
                 aria-label="Rate this recipe from one to five"
               >
-               <!-- 5 个评分按钮：selected 类控制选中态  -->
                 <button
                   v-for="rating in 5"
                   :key="rating"
@@ -287,7 +291,7 @@ async function submitComment() {
           </div>
         </section>
 
-         <!-- Comments section-->
+        <!-- Comments provide student feedback and can be independently reported. -->
         <section class="mt-5">
           <div class="d-flex align-items-end justify-content-between mb-3">
             <div>
@@ -296,14 +300,14 @@ async function submitComment() {
             </div>
             <span class="text-secondary small">{{ recipe.comments.length }} shown</span>
           </div>
-          <!-- Comment list -->
+          <!-- Existing comments are rendered before the student-only comment form. -->
           <div v-if="recipe.comments.length" class="row g-3">
             <div v-for="comment in recipe.comments" :key="comment.id" class="col-md-6">
               <article class="surface-card p-4 h-100">
                 <div class="d-flex justify-content-between gap-2">
                   <strong>{{ comment.author }}</strong
                   ><span v-if="comment.rating" class="recipe-rating">{{ comment.rating }} / 5</span>
-                   <!-- Each comment can be reported -->
+                  <!-- Each signed-in user may report an individual comment for review. -->
                   <button
                     v-if="user"
                     class="btn btn-link btn-sm text-secondary p-0 report-comment-btn"
@@ -317,11 +321,11 @@ async function submitComment() {
               </article>
             </div>
           </div>
-           <!-- Empty state -->
+          <!-- The empty state explains why no comment cards appear yet. -->
           <div v-else class="empty-state p-4">
             No comments yet. Be the first student to share a helpful tip.
           </div>
-          <!-- Comment form: students only -->
+          <!-- Contributors can view feedback but only students submit comments. -->
           <form
             v-if="user?.role === 'student'"
             class="surface-card p-4 mt-4"
@@ -356,15 +360,13 @@ async function submitComment() {
             <RouterLink to="/login">Log in</RouterLink> to leave a comment.
           </p>
         </section>
-        <!-- Report success message -->
+        <!-- Report submission feedback remains visible after the modal closes. -->
         <p v-if="reportMessage" class="alert alert-success mt-4 mb-0">{{ reportMessage }}</p>
       </template>
 
-      <!-- 举报弹窗：一个弹窗处理食谱/评论两种举报 -->
       <div v-if="reportOpen" class="modal-backdrop-custom" @click.self="reportOpen = false">
         <section
           class="report-modal surface-card">
-           <!-- 根据 reportTarget 切换  -->
           <h2 id="report-title" class="section-heading">
             {{ reportTarget ? 'Report comment' : 'Report recipe' }}</h2>
           <p class="text-secondary">
@@ -373,7 +375,7 @@ async function submitComment() {
               : 'Tell the administrator why this recipe needs review.' }}
           </p>
 
-          <!--  Dynamic option list -->
+          <!-- Reasons are selected from the correct list for a recipe or comment report. -->
           <label class="form-label" for="report-reason">Reason</label
           ><select id="report-reason" v-model="reportReason" class="form-select">
             <option value="">Choose a reason</option>
@@ -385,7 +387,6 @@ async function submitComment() {
               {{ reason }}
             </option>
           </select>
-          <!-- "Other concern" 时显示的补充输入框 -->
           <div v-if="reportReason === 'Other concern'" class="mt-3">
             <label class="form-label" for="report-custom">Please describe the issue</label>
             <textarea
@@ -398,7 +399,7 @@ async function submitComment() {
             ></textarea>
             <small class="text-secondary">{{ reportCustomText.length }} / 200 characters</small>
           </div>
-           <!-- Bottom buttons -->
+          <!-- The modal actions either discard local state or send the report payload. -->
           <div class="d-flex justify-content-end gap-2 mt-4">
             <button class="btn btn-outline-secondary" type="button" @click="reportOpen = false">
               Cancel</button
@@ -413,44 +414,43 @@ async function submitComment() {
 </template>
 
 <style scoped>
-/* ===== 空状态提示区（当食谱不存在时） ===== */
+/* A constrained empty state avoids an overly wide error card on large screens. */
 .detail-empty {
   max-width: 35rem;
 }
 
-/* ===== 返回链接（"← Back to recipes"） ===== */
 .back-link {
+  /* The return link uses the brand colour without competing with primary actions. */
   color: var(--um-green);
   font-size: 0.9rem;
   font-weight: 750;
 }
 
-/* ===== 图片容器（最小高度，防止加载时塌陷） ===== */
 .detail-image-wrap {
+  /* Reserve image height to prevent the main recipe card from jumping during loading. */
   min-height: 22rem;
 }
 
-/* ===== 标题通用样式（详情标题 + 区块标题共用） ===== */
 .detail-title,
 .section-heading {
+  /* Page and section headings share the same bold product typography. */
   color: var(--um-ink);
   font-weight: 800;
   letter-spacing: -0.045em;
 }
 
-/* ===== 详情页主标题 ===== */
 .detail-title {
   font-size: 2.5rem;
 }
 
-/* ===== 详情描述文字 ===== */
 .detail-copy {
+  /* Supporting recipe copy is muted so title and actions retain hierarchy. */
   color: var(--um-muted);
   margin: 1rem 0;
 }
 
-/* ===== 标签小药丸（如 Vegetarian / Gluten Free） ===== */
 .detail-tag {
+  /* Dietary and equipment labels use a neutral tag treatment. */
   border-radius: 99px;
   padding: 0.38rem 0.65rem;
   background: #f4efe6;
@@ -459,33 +459,31 @@ async function submitComment() {
   font-weight: 750;
 }
 
-/* ===== 元信息卡片数字 ===== */
 .col-4 strong {
+  /* Each metadata value occupies its own line above its label. */
   display: block;
   color: var(--um-green);
   font-size: 1.1rem;
 }
 
-/* ===== 元信息卡片文字 ===== */
 .col-4 span {
   display: block;
   color: var(--um-muted);
   font-size: 0.72rem;
 }
 
-/* ===== 评分数字 ===== */
 .recipe-rating {
+  /* The warm colour separates rating data from green planning metadata. */
   color: #9c5a0c;
   font-weight: 800;
 }
 
-/* ===== 区块标题（Ingredients / Method 等） ===== */
 .section-heading {
   font-size: 1.45rem;
 }
 
-/* ===== 食材列表项 ===== */
 .ingredient-list li {
+  /* Ingredient rows pair a flexible name with a non-wrapping quantity. */
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -494,38 +492,35 @@ async function submitComment() {
   font-size: 0.94rem;
 }
 
-/* ===== 最后一个食材项不要边框 ===== */
 .ingredient-list li:last-child {
+  /* The final ingredient does not need a divider. */
   border: 0;
 }
 
-/* ===== 食材用量（右侧绿色数字） ===== */
 .ingredient-list strong {
   color: var(--um-green);
   white-space: nowrap;
 }
 
-/* ===== 做法步骤列表（去除默认样式） ===== */
 .method-list {
+  /* Remove browser list styling because step numbers are custom elements. */
   list-style: none;
   padding: 0;
 }
 
-/* ===== 每个步骤项 ===== */
 .method-list li {
   display: flex;
   gap: 1rem;
   padding: 0.85rem 0;
 }
 
-/* ===== 步骤描述文字 ===== */
 .method-list p {
   margin: 0.25rem 0 0;
   line-height: 1.6;
 }
 
-/* ===== 步骤序号圆圈（1, 2, 3...） ===== */
 .step-number {
+  /* A consistent circular number makes longer methods easy to follow. */
   display: flex;
   flex: 0 0 2rem;
   height: 2rem;
@@ -537,13 +532,12 @@ async function submitComment() {
   font-weight: 800;
 }
 
-/* ===== 评分按钮组容器 ===== */
 .rating-actions {
+  /* Rating controls remain evenly spaced touch targets. */
   display: flex;
   gap: 0.45rem;
 }
 
-/* ===== 评分按钮 ===== */
 .rating-actions button {
   width: 2.25rem;
   height: 2.25rem;
@@ -554,22 +548,21 @@ async function submitComment() {
   font-weight: 800;
 }
 
-/* ===== 评分按钮被选中或悬停 ===== */
 .rating-actions button.selected,
 .rating-actions button:hover {
+  /* Selected and hovered scores share the coral active-state styling. */
   border-color: var(--um-coral);
   color: #fff;
   background: var(--um-coral);
 }
 
-/* ===== “已保存”提示文字 ===== */
 .saved-note {
   color: var(--um-green);
   font-size: 0.86rem;
   font-weight: 700;
 }
-/* ===== 弹窗遮罩 / Modal backdrop ===== */
 .modal-backdrop-custom {
+  /* The overlay covers the page and centres the report form above its content. */
   position: fixed;
   z-index: 1050;
   inset: 0;
@@ -579,8 +572,8 @@ async function submitComment() {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.45);
 }
-/* ===== 弹窗本体 / Modal body ===== */
 .report-modal {
+  /* Keep report text fields readable on both desktop and mobile. */
   width: min(100%, 30rem);
   padding: 1.5rem;
 }
@@ -593,8 +586,8 @@ async function submitComment() {
   border-color: #cfd9d3;
 }
 
-/* ===== 评论举报按钮 / Comment report button ===== */
 .report-comment-btn {
+  /* Reporting is visually secondary to the comment content itself. */
   font-size: 0.76rem;
   font-weight: 700;
   text-decoration: none;
@@ -602,7 +595,6 @@ async function submitComment() {
 .report-comment-btn:hover {
   color: var(--um-coral) !important;
 }
-/* ===== 平板/手机适配（屏幕宽度小于 992px） ===== */
 @media (max-width: 991.98px) {
   .detail-image-wrap {
     height: 18rem;

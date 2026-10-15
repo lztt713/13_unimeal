@@ -1,33 +1,33 @@
 <script setup>
-// Reuse the same component to render login or register UI based on route mode
+// Reuse the same component to render login or registration UI based on the route mode.
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
-// Receive route prop: mode ('login' or 'register')
+// The route provides either "login" or "register" as the mode prop.
 const props = defineProps({ mode: { type: String, required: true } })
-// Get router instance for programmatic navigation
+// Use the router after a successful request to enter the correct role workflow.
 const router = useRouter()
-// Form data container: name, email, password, role
+// The form supports the complete registration payload and the smaller login payload.
 const form = ref({ name: '', email: '', password: '', role: 'student' })
-// State management: error message, saving state
+// These values provide inline validation feedback and prevent duplicate submission.
 const error = ref('')
 const saving = ref(false)
-//Computed property: determine if current mode is 'register'
+// Determine which fields and labels should be rendered for the current mode.
 const isRegister = computed(() => props.mode === 'register')
 
-// Submit logic: validate -> request -> redirect -> exception handling
+// Validate locally, call the relevant authentication endpoint, then redirect by role.
 async function submit() {
   error.value = ''
-   // Frontend validation: check required fields
+  // Perform simple required-field validation before making a network request.
   if (!form.value.email || !form.value.password || (isRegister.value && !form.value.name)) {
     error.value = 'Please complete all required fields.'
     return
   }
   saving.value = true
   try {
-  // Call register or login API based on the current mode
+    // Registration creates an account; login reuses the existing account credentials.
     const user = isRegister.value ? await api.register(form.value) : await api.signIn(form.value)
-    // 根据角色决定跳转目标
+    // Send each role to its own starting page after authentication.
     const defaultRoute =
       user.role === 'administrator'
         ? '/admin'
@@ -57,11 +57,10 @@ async function submit() {
   <section class="auth-page">
     <div class="container">
       <div class="row justify-content-center">
-      <!-- 响应式：中屏占 8/12，大屏占 5/12，保证表单不会太宽 -->
         <div class="col-md-8 col-lg-5">
           <article class="surface-card p-4 p-md-5">
             <p class="eyebrow">UniMeal account</p>
-            <!-- Dynamic title: switch text based on isRegister -->
+            <!-- The shared screen changes its title and helper text for login or registration. -->
             <h1 class="auth-title">
               {{ isRegister ? 'Create your UniMeal account.' : 'Welcome back.' }}
             </h1>
@@ -74,7 +73,7 @@ async function submit() {
             </p>
             <form @submit.prevent="submit">
               <div v-if="error" class="alert alert-danger">{{ error }}</div>
-              <!-- Register-only fields (hidden in login mode) -->
+              <!-- These fields are needed only while creating a new account. -->
               <div v-if="isRegister" class="mb-3">
                 <label class="form-label" for="name">Display name</label
                 ><input id="name" v-model="form.name" class="form-control" />
@@ -86,7 +85,7 @@ async function submit() {
                   <option value="contributor">Recipe contributor</option>
                 </select>
               </div>
-              <!-- Common fields: email and password -->
+              <!-- Existing and new accounts both use email and password credentials. -->
               <div class="mb-3">
                 <label class="form-label" for="email">Email</label
                 ><input id="email" v-model="form.email" class="form-control" type="email" />
@@ -106,7 +105,7 @@ async function submit() {
                 {{ saving ? 'Please wait...' : isRegister ? 'Create account' : 'Sign in' }}
               </button>
             </form>
-             <!-- Bottom switch link: toggle between login and register -->
+            <!-- Let visitors switch between the two authentication paths without losing context. -->
             <p class="small text-secondary text-center mt-4 mb-0">
               {{ isRegister ? 'Already have an account?' : 'New to UniMeal?' }}
               <RouterLink :to="isRegister ? '/login' : '/register'">{{
@@ -124,16 +123,15 @@ async function submit() {
 .auth-page {
   min-height: calc(100vh - 73px);
   padding: 5rem 0;
-  /* background: linear-gradient(135deg, #f7f4ed, #edf4e9); */
 }
-/* Main title: dark ink color, bold, tight letter spacing */
+/* The authentication page keeps its form vertically centred with generous whitespace. */
 .auth-title {
   color: var(--um-ink);
   font-size: 2.25rem;
   font-weight: 800;
   letter-spacing: -0.05em;
 }
-/* Input field: rounded corners, padding, focus turns brand green */
+/* Form labels and controls share the product's rounded, high-contrast input style. */
 .form-label {
   color: var(--um-ink);
   font-size: 0.85rem;

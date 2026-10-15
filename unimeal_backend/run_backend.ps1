@@ -5,7 +5,7 @@ Set-Location $dir
 $python = Join-Path $dir "..\.venv\Scripts\python.exe"
 
 if (-not (Test-Path -LiteralPath $python)) {
-    throw "Python virtual environment not found: $python"
+    throw "Python virtual environment not found: $python. Run .\setup.ps1 once from the project root first."
 }
 
 Write-Host "Starting UniMeal backend at http://127.0.0.1:8000 ..." -ForegroundColor Cyan

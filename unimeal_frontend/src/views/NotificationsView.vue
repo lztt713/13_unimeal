@@ -5,49 +5,51 @@ import { updateUnreadNotificationCount } from '../services/notificationState'
 
 const notifications = ref([])
 const loading = ref(true)
-const view = ref('unread')  // 当前视图：'unread' 或 'all'
-// ---------- Computed: unread count ----------
-// 未读数
+// The user can switch between the unread inbox and complete notification history.
+const view = ref('unread')
+
+// Keep the page tabs and navigation badge based on the same notification state.
 const unreadCount = computed(
   () => notifications.value.filter((notification) => !notification.read).length,
 )
-// 已读数
 const readCount = computed(
   () => notifications.value.filter((notification) => notification.read).length,
 )
-// 当前显示的通知列表（根据 view 切换）
+// The selected tab controls the rendered subset without changing saved notification data.
 const visibleNotifications = computed(() =>
   view.value === 'unread'
-    ? notifications.value.filter((notification) => !notification.read) // 只看未读
-    : notifications.value,   // 全部
+    ? notifications.value.filter((notification) => !notification.read)
+    : notifications.value,
 )
 
 onMounted(async () => {
   try {
+    // Use the same fetched list to initialise the page and global navigation badge.
     notifications.value = await api.getNotifications()
-    updateUnreadNotificationCount(notifications.value) // 同步全局未读数
+    updateUnreadNotificationCount(notifications.value)
   } finally {
     loading.value = false
   }
 })
 
-// ----------  mark one as read ----------
+// Mark one item read without reloading the entire notification list.
 async function markAsRead(notification) {
-  if (notification.read) return  // 已经读过了，不做任何事
+  if (notification.read) return
   const updated = await api.markNotificationRead(notification.id)
   if (updated) {
     notification.read = updated.read
-    updateUnreadNotificationCount(notifications.value)  //  同步全局未读数
+    updateUnreadNotificationCount(notifications.value)
   }
 }
 
-// --------- mark all as read -----
+// Apply the same state transition to every unread notification.
 async function markAllAsRead() {
   notifications.value = await api.markAllNotificationsRead()
   updateUnreadNotificationCount(notifications.value)
 }
 
 async function clearRead() {
+  // Delete only read items; active reminders remain available to the student.
   await api.clearReadNotifications()
   notifications.value = notifications.value.filter((notification) => !notification.read)
   updateUnreadNotificationCount(notifications.value)
@@ -67,7 +69,7 @@ async function clearRead() {
           </p>
         </div>
         <div class="d-flex gap-2">
-          <!-- Button disabled when no unread notifications -->
+          <!-- Reading is disabled when there are no unread items; clearing only appears on All. -->
           <button
             class="btn btn-outline-primary"
             type="button"
@@ -101,7 +103,7 @@ async function clearRead() {
           <h2 class="h5 fw-bold">You are all caught up.</h2>
           <p class="mb-0">{{ view === 'unread' ? 'New reminders will appear here.' : 'There are no notifications yet.' }}</p>
         </div>
-        <!-- Notification list -->
+        <!-- Each notification keeps its read state until the student clears it from All. -->
         <div v-else class="surface-card overflow-hidden">
           <article
             v-for="notification in visibleNotifications"
@@ -109,21 +111,21 @@ async function clearRead() {
             class="notification-item"
             :class="{ unread: !notification.read }"
           >
-           <!-- "unread" class adds green left border + light green background -->
+            <!-- The unread class provides a green visual indicator. -->
             <div class="d-flex flex-wrap justify-content-between gap-2">
               <div>
                 <div class="d-flex align-items-center gap-2 mb-1">
                   <span class="notification-type">{{ notification.type }}</span>
-                  <!--  "New" badge (only if unread) -->
+                  <!-- The New badge is intentionally shown only for unread items. -->
                   <span v-if="!notification.read" class="badge text-bg-primary">New</span>
                 </div>
-                <!-- Title -->
+                <!-- Title and message come directly from the backend notification record. -->
                 <h2 class="h5 mb-1">{{ notification.title }}</h2>
                 <p class="mb-0 text-secondary">{{ notification.message }}</p>
               </div>
               <small class="text-secondary">{{ notification.createdAt }}</small>
             </div>
-            <!-- "Mark as read" only shows when unread -->
+            <!-- A single-item action is available only until the notification is read. -->
             <button
               v-if="!notification.read"
               class="btn btn-sm btn-outline-secondary mt-3"
@@ -143,13 +145,13 @@ async function clearRead() {
 .notification-page {
   max-width: 60rem;
 }
-/* 每一条通知 */
 .notification-item {
+  /* Separate notification records without adding a heavy card around each one. */
   padding: 1.25rem;
   border-bottom: 1px solid var(--um-line);
 }
-/* 最后一条去掉下边框 */
 .notification-item:last-child {
+  /* The final item does not need a dividing line. */
   border-bottom: 0;
 }
 

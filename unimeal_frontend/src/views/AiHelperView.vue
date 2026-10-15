@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import RecipeCard from '../components/RecipeCard.vue'
 import { api } from '../services/api'
 
-const query = ref('')  // 用户输入的查询文字
+// Natural-language text provided by the student for either AI or rule-based search.
+const query = ref('')
 const result = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -13,7 +14,8 @@ const examples = [
   'Quick dinners with rice',
   'High protein meals under 30 minutes',
 ]
-// 把用户的饮食偏好和菜系拼成一个数组，展示在页面下方
+
+// Display profile preferences alongside AI results so recommendations are explainable.
 const savedPreferences = computed(() => [
   ...(profile.value?.dietaryPreferences || []),
   ...(profile.value?.favouriteCuisines || []).map((cuisine) => `Likes ${cuisine}`),
@@ -27,10 +29,12 @@ onMounted(async () => {
   }
 })
 async function ask() {
+  // Ignore whitespace-only requests before contacting the recommendation endpoint.
   if (!query.value.trim()) return
   error.value = ''
   loading.value = true
   try {
+    // The backend applies profile safety checks before requesting AI ranking.
     result.value = await api.getAiRecommendation(query.value)
   } catch {
     error.value = 'The assistant could not prepare a suggestion. Please try again.'
@@ -40,12 +44,14 @@ async function ask() {
 }
 
 async function smartSearch() {
+  // This button intentionally uses the deterministic backend parser rather than Gemini.
   if (!query.value.trim()) return
 
   error.value = ''
   loading.value = true
 
   try {
+    // Smart search is a deterministic alternative to the external AI service.
     const recipes = await api.smartSearch(query.value)
 
     result.value = {
@@ -65,8 +71,9 @@ async function smartSearch() {
 }
 
 function useExample(example) {
-  query.value = example  // 填充输入框
-  ask()  // 立即搜索
+  // Example chips populate the field and immediately demonstrate the primary AI flow.
+  query.value = example
+  ask()
 }
 </script>
 
@@ -82,6 +89,7 @@ function useExample(example) {
         </p>
       </div>
       <form class="ai-search surface-card p-2 p-md-3 mt-4" @submit.prevent="ask">
+        <!-- One shared query field supports both live AI recommendations and deterministic search. -->
         <div class="input-group">
           <input
             v-model="query"
@@ -103,6 +111,7 @@ function useExample(example) {
         </div>
       </form>
       <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+        <!-- Example chips help first-time students discover the expected query style. -->
         <button
           v-for="example in examples"
           :key="example"
@@ -113,7 +122,6 @@ function useExample(example) {
           {{ example }}
         </button>
       </div>
-      <!-- 已保存偏好展示 -->
       <p v-if="savedPreferences.length" class="text-secondary small text-center mt-3 mb-0">
         Saved preferences: {{ savedPreferences.join(' · ') }}
       </p>
@@ -121,9 +129,8 @@ function useExample(example) {
       <div v-else-if="loading" class="py-5 text-center text-secondary">
         Preparing a student-friendly suggestion...
       </div>
-      <!-- 有结果 -->
       <section v-else-if="result" class="ai-content mt-5">
-        <!-- 推荐卡片 + 注意事项 -->
+        <!-- The mode is exposed so fallback and live AI results are not misleading. -->
         <article class="surface-card p-4 p-md-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
             <div>
@@ -182,10 +189,10 @@ function useExample(example) {
 </template>
 
 <style scoped>
+/* Limit wide content so natural-language input remains easy to read. */
 .ai-intro {
   max-width: 46rem;
 }
-/* 搜索框容器 */
 .ai-search {
   max-width: 50rem;
   margin-inline: auto;
@@ -193,8 +200,8 @@ function useExample(example) {
 .ai-search .form-control {
   min-width: 0;
 }
-/* 3 个示例胶囊。悬停时背景变浅绿 */
 .example-chip {
+  /* Example queries look interactive without competing with the primary submit button. */
   border: 1px solid #d4dfd0;
   border-radius: 99px;
   padding: 0.45rem 0.75rem;
