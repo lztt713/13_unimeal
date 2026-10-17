@@ -4,6 +4,11 @@
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location "$root\unimeal_backend"
+$python = Join-Path $root ".venv\Scripts\python.exe"
+
+if (-not (Test-Path -LiteralPath $python)) {
+    throw "Python virtual environment not found: $python. Run .\setup.ps1 once from the project root first."
+}
 
 function Read-Password {
     param([string]$Prompt)
@@ -13,8 +18,13 @@ function Read-Password {
     finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
 }
 
-if (-not (Test-Path "$root\.env")) {
-    Write-Host "No .env file found. Enter the MySQL password for this run." -ForegroundColor Yellow
+$hasTestDatabaseUrl = $false
+if (Test-Path "$root\.env") {
+    $hasTestDatabaseUrl = Select-String -Path "$root\.env" -Pattern '^\s*TEST_DATABASE_URL\s*=\s*\S+' -Quiet
+}
+
+if (-not $hasTestDatabaseUrl) {
+    Write-Host "No TEST_DATABASE_URL found in .env. Enter the MySQL password for this run." -ForegroundColor Yellow
     $pw = Read-Password "MySQL root password"
     if (-not $pw) { Write-Host "No password entered. Aborted." -ForegroundColor Red; exit 1 }
     $pwEnc = [uri]::EscapeDataString($pw)
@@ -24,4 +34,5 @@ if (-not (Test-Path "$root\.env")) {
 }
 
 Write-Host "Running tests against MySQL (unimeal_test) ..." -ForegroundColor Cyan
-python -m unittest discover -s tests -v
+& $python -m unittest discover -s tests -v
+exit $LASTEXITCODE

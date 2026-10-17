@@ -65,8 +65,8 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> User | None:
     """Like get_current_user, but returns None instead of raising for anonymous access.
 
-    ZZH: 菜谱详情页需要区分"未登录"和"已登录但无权限"，所以提供这个可选版本，
-    匿名时返回 None 而不是抛 401。
+    Recipe details need to distinguish anonymous users from authenticated users
+    who lack permission, so this optional variant returns None instead of 401.
     """
     try:
         return get_current_user(request, db)

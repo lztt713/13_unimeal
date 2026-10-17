@@ -3,8 +3,8 @@
 Reminder trigger conditions are supplied by the planning module; this module
 owns persistence, deduplication and the read/unread API.
 
-张展赫 (Zhang Zhanhe / ZZH): 通知模块。梁子豪的 planning_reminder_candidates 提供
-触发条件，本模块负责数据库写入、去重和已读接口。
+Zhang Zhanhe (ZZH): ``planning_reminder_candidates`` supplies trigger
+conditions; this module stores, deduplicates and marks notifications as read.
 """
 
 from __future__ import annotations
@@ -22,8 +22,6 @@ from app.schemas import NotificationResponse
 
 router = APIRouter(prefix="/api", tags=["notifications"])
 
-# ZZH: 梁子豪给的触发类型是 meal_plan/shopping_list，数据库枚举是 meal_reminder/
-# shopping_reminder，前端展示名是 "Meal reminder"/"Shopping reminder"，这里做两层映射。
 # The planning module emits generic kinds, the DB stores enum values and the
 # frontend renders labels — map each layer explicitly.
 CANDIDATE_TYPE_MAP = {
@@ -53,9 +51,6 @@ def _notification_response(notification: Notification) -> dict:
 
 def sync_notifications(db: Session, user_id: int) -> None:
     """Reconcile live reminders and create any currently missing ones.
-
-    去重核心：每个触发条件带一个 dedupe_key（如 meal_plan:{uid}:{date}），
-    同一用户 + 同一 key 已存在就跳过，避免重复提醒被反复写入。
 
     Meal and shopping reminders describe current state. Only keys emitted by
     ``planning_reminder_candidates`` remain valid; older or no-longer-true
@@ -123,9 +118,8 @@ def list_notifications(db: Session, user: User) -> list[dict]:
 def notify_recipe_updated(db: Session, recipe) -> None:
     """Notify every user who saved a recipe when its contributor edits it.
 
-    ZZH: 贡献者修改菜谱后，通知所有收藏了该菜谱的学生（recipe_update 类型）。
-    用 recipe.updated_at 作为去重 key 的一部分，同一次更新只通知一次，
-    下次更新（updated_at 变了）会再产生新通知。
+    ``recipe.updated_at`` is part of the deduplication key, so one update sends
+    one notification while a later edit can produce a new notification.
     """
     savers = (
         db.query(User)
@@ -194,7 +188,6 @@ def delete_read_notifications(db: Session, user: User) -> list[dict]:
     return _list(db, user.user_id)
 
 
-# ZZH: 列表接口在返回前先同步一次提醒，这样"明天有餐/购物清单未购"会即时出现。
 # Listing first syncs reminders so new triggers appear without a cron job.
 @router.get("/notifications", response_model=list[NotificationResponse])
 def get_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -202,7 +195,6 @@ def get_notifications(db: Session = Depends(get_db), user: User = Depends(get_cu
     return list_notifications(db, user)
 
 
-# ZZH: 单条已读：按 notification_id + user_id 联合过滤，保证只能改自己的通知。
 # Filter by both id and user_id so a user can only mark their own notification.
 @router.patch("/notifications/{notification_id}/read", response_model=NotificationResponse)
 def read_notification(
@@ -214,7 +206,6 @@ def read_notification(
     return mark_notification_read(db, user, notification_id)
 
 
-# ZZH: 全部已读：把当前用户所有 read_at 为空的记录一次性置为已读。
 # Marks every unread notification for the current user as read in one go.
 @router.patch("/notifications/read-all", response_model=list[NotificationResponse])
 def read_all_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):

@@ -1,8 +1,8 @@
 """Recipe endpoints backed by Qichen Hu's normalized MySQL database.
 
-张展赫 (Zhang Zhanhe / ZZH): 菜谱接口的身份与权限改造。删除固定测试邮箱依赖，
-改用当前登录用户；Contributor 只能操作自己的菜谱；Draft/Archived 对普通用户隐藏。
-评论接口也在这里实现。
+Zhang Zhanhe (ZZH): Recipe permissions use the authenticated user rather than
+a fixed test account. Contributors manage only their own recipes, draft and
+archived recipes are hidden from other users, and comment APIs live here.
 """
 
 from __future__ import annotations
@@ -79,7 +79,6 @@ def _display_status(value: str | None) -> str:
 
 
 def _db_status(value: str | None) -> str:
-    # ZZH: 状态只允许 draft/published/archived，非法值返回 400。
     # Only these three statuses are valid; anything else is rejected.
     status = (value or "draft").strip().lower()
     if status not in VALID_RECIPE_STATUSES:
@@ -205,7 +204,7 @@ def _replace_recipe_steps(db: Session, recipe: Recipe, steps: list[str]) -> None
 def _recipe_comments(db: Session, recipe_id: int) -> list[dict]:
     """Return visible (non-hidden) comments with author and timestamp.
 
-    只返回 is_hidden=False 的评论，被管理员隐藏的评论对普通用户不可见。
+    Comments hidden by an administrator are not visible to regular users.
     """
     comments = (
         db.query(RecipeComment)
@@ -229,8 +228,8 @@ def _recipe_comments(db: Session, recipe_id: int) -> list[dict]:
 def _recipe_allergens(db: Session, recipe_id: int) -> list[str]:
     """Return the allergen names linked to a recipe's ingredients.
 
-    菜谱食材 → ingredient_allergens → allergies：根据菜谱用到的食材，
-    查出关联的过敏原名称（去重、按名称排序）。
+    The query follows recipe ingredients through the ingredient-allergen
+    junction, then deduplicates and sorts the allergen names.
     """
     rows = (
         db.query(Allergy.allergy_name)
@@ -279,10 +278,7 @@ def _recipe_to_response(recipe: Recipe, db: Session, include_comments: bool = Fa
 
 
 def _can_manage_recipe(recipe: Recipe, user: User | None) -> bool:
-    """Only the recipe author or an administrator may manage a non-public recipe.
-
-    权限核心：只有菜谱作者或管理员能查看/操作非公开（draft/archived）菜谱。
-    """
+    """Only the recipe author or an administrator may manage a non-public recipe."""
     if user is None:
         return False
     return recipe.author_user_id == user.user_id or user.role.role_name == "administrator"
@@ -410,7 +406,6 @@ def list_recipes(
     return [_recipe_to_response(recipe, db) for recipe in recipes]
 
 
-# ZZH: 我的菜谱：只返回当前登录 Contributor 自己的菜谱（含草稿）。
 # Only the current contributor's own recipes are returned, drafts included.
 @router.get("/my-recipes", response_model=list[RecipeResponse])
 def list_my_recipes(db: Session = Depends(get_db), contributor: User = Depends(contributor_user)):
@@ -434,8 +429,6 @@ def get_recipe(
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
     if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    # ZZH: 非公开菜谱（draft/archived）只有作者或管理员可见，其他人一律 404，
-    # 既不泄露菜谱存在，也满足"普通用户看不到别人的草稿/归档"。
     # Non-public recipes are 404 for everyone except the author or an admin.
     if recipe.status != "published" and not _can_manage_recipe(recipe, user):
         raise HTTPException(status_code=404, detail="Recipe not found")
@@ -450,8 +443,8 @@ def create_recipe(
 ):
     """Create a recipe owned by the current contributor, starting as a draft.
 
-    作者固定为当前登录 Contributor（contributor.user_id），不再用固定测试邮箱；
-    新菜谱一律从 draft 状态开始。
+    Ownership comes from the authenticated contributor rather than a fixed
+    test account, and every new recipe starts in draft status.
     """
     cuisine = _get_or_create_cuisine(db, payload.cuisine)
 
@@ -492,7 +485,8 @@ def update_recipe(
 ):
     """Update a recipe owned by the current contributor.
 
-    查询时同时过滤 author_user_id，非本人菜谱视为不存在（404），防止越权修改。
+    The query includes author_user_id so another contributor's recipe is
+    treated as missing instead of allowing an unauthorized update.
     """
     recipe = (
         db.query(Recipe)
@@ -534,7 +528,6 @@ def update_recipe(
 
     db.commit()
     db.refresh(recipe)
-    # ZZH: 菜谱被更新后，通知所有收藏了它的学生（recipe_update 类型）。
     # Notify students who saved this recipe whenever the contributor edits it.
     notify_recipe_updated(db, recipe)
     return _recipe_to_response(recipe, db, include_comments=True)
@@ -548,7 +541,7 @@ def delete_recipe(
 ):
     """Delete a recipe owned by the current contributor, unless still used by a meal plan.
 
-    同样按 author_user_id 过滤，保证只能删自己的菜谱。
+    Filtering by author_user_id ensures contributors can delete only their own recipes.
     """
     recipe = (
         db.query(Recipe)
@@ -604,8 +597,9 @@ def add_recipe_comment(
 ):
     """Post a comment on a published recipe, associated with the current user.
 
-    评论只允许发在已发布的菜谱上；评论人与菜谱都用当前登录用户和路径里的 id，
-    空评论（仅空白字符）返回 400；超过 500 字由 CommentCreate 的 max_length 拦截。
+    Blank comments receive 400, while CommentCreate enforces the maximum
+    length. The author comes from the authenticated user and the recipe ID
+    comes from the request path.
     """
     recipe = (
         db.query(Recipe)

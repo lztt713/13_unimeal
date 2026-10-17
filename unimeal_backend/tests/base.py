@@ -1,10 +1,7 @@
-"""MySQL-backed test base (张展赫 ZZH).
+"""MySQL-backed test base (Zhang Zhanhe, ZZH).
 
 Tests run against a dedicated ``unimeal_test`` database so the development
 database (``unimeal_planner``) and its sample data are never touched.
-
-数据库测试基类：跑在独立的 unimeal_test 库上，绝不污染开发库 unimeal_planner。
-每个测试方法前重建表结构，保证用例之间互不影响、计数确定。
 """
 
 from __future__ import annotations
@@ -18,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 
-# ZZH: 测试库连接串，可通过环境变量 TEST_DATABASE_URL 覆盖（密码写在这里或 .env）。
+# Override the test database URL with the TEST_DATABASE_URL environment variable.
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "mysql+pymysql://root:password@127.0.0.1:3306/unimeal_test?charset=utf8mb4",
@@ -56,7 +53,8 @@ def ensure_test_database() -> None:
 def _reset_schema(engine) -> None:
     """Drop and recreate all ORM tables, ignoring foreign keys while dropping.
 
-    在同一个连接里关闭外键检查后 drop_all + create_all，避免 MySQL 因外键拒绝删表。
+    Foreign-key checks are disabled on the same connection so MySQL permits
+    drop_all followed by create_all.
     """
     with engine.connect() as conn:
         conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))

@@ -17,7 +17,7 @@ from app.schemas import DashboardResponse
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
-# LZTT: Return the current student's budget, dinner, and favourites. / 返回当前学生的预算、晚餐和收藏。
+# LZTT: Return the current student's budget, dinner, and favourites.
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
     db: Session = Depends(get_db),
