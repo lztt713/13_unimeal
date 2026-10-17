@@ -1,4 +1,4 @@
-"""Notification and administrator management tests (runs on MySQL, 张展赫 ZZH)."""
+"""Notification and administrator management tests (runs on MySQL, Zhang Zhanhe/ZZH)."""
 
 import unittest
 from datetime import date, timedelta

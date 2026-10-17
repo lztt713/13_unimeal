@@ -1,4 +1,4 @@
-"""Recipe ownership, visibility and comment permissions (runs on MySQL, 张展赫 ZZH)."""
+"""Recipe ownership, visibility and comment permissions (runs on MySQL, Zhang Zhanhe/ZZH)."""
 
 import unittest
 

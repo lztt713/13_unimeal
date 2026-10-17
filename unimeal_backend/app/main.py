@@ -52,7 +52,6 @@ app.include_router(notifications.router)
 app.include_router(admin.router)
 
 
-# ZZH: 全局异常处理：约束冲突统一转 409，不把数据库报错细节（可能含表名/连接串）泄露给前端。
 # Global handler: constraint conflicts become 409 without leaking DB internals.
 @app.exception_handler(IntegrityError)
 async def integrity_error_handler(request, exc):
@@ -63,7 +62,6 @@ async def integrity_error_handler(request, exc):
     )
 
 
-# ZZH: 数据库连不上统一转 503，同样用通用文案，绝不暴露密码/主机名。
 # Database outages become 503 with a generic message (no credentials or hostnames).
 @app.exception_handler(OperationalError)
 async def operational_error_handler(request, exc):
@@ -74,7 +72,6 @@ async def operational_error_handler(request, exc):
     )
 
 
-# ZZH: 健康检查真实执行 SELECT 1，数据库不可达时返回 503 而非假装健康。
 # The health check actually runs a query and returns 503 if the DB is unreachable.
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):

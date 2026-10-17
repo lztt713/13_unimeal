@@ -1,7 +1,8 @@
 """Content reports and administrator management endpoints.
 
-张展赫 (Zhang Zhanhe / ZZH): 举报与管理员模块。任何登录用户可举报菜谱/评论；
-管理员可查看概览、管理用户和菜谱、处理举报、维护食材分类。
+Zhang Zhanhe (ZZH): Any authenticated user can report a recipe or comment.
+Administrators can view statistics, manage users and recipes, resolve reports,
+and maintain ingredient categories.
 """
 
 from __future__ import annotations
@@ -35,8 +36,6 @@ from app.schemas import (
 
 router = APIRouter(prefix="/api", tags=["admin"])
 
-# ZZH: 举报状态：前端按钮用的是 "In review"/"Resolved"/"Dismissed"，
-# 数据库枚举是 reviewing/resolved/dismissed，这里做双向映射。
 # Report status: the frontend sends display labels, the DB stores enum values.
 REPORT_STATUS_DB = {
     "open": "open",
@@ -78,8 +77,8 @@ def _report_response(report: ContentReport) -> dict:
 def create_report(db: Session, reporter: User, target_type: str, target_id: int, reason: str) -> dict:
     """Record a report against one recipe or one comment.
 
-    举报必须指向存在的菜谱或评论（否则 404）；目标存在才保存，保证外键不悬空。
-    数据库有 CHECK 约束保证 recipe_id 和 comment_id 二选一。
+    A report must target an existing recipe or comment. The database CHECK
+    constraint enforces that exactly one of recipe_id and comment_id is set.
     """
     reason = reason.strip()
     if not reason:
@@ -174,7 +173,6 @@ def update_report_status(db: Session, admin: User, report_id: int, status: str) 
 
 
 def update_user(db: Session, admin: User, user_id: int, role: str | None, status: str | None) -> dict:
-    # ZZH: 关键保护：管理员不能停用自己的账户，避免把自己锁在系统外。
     # Guard: an administrator cannot suspend their own account.
     target = db.get(User, user_id)
     if target is None:
@@ -248,7 +246,6 @@ def delete_ingredient_category(db: Session, category_id: int) -> list[dict]:
     return list_ingredient_categories(db)
 
 
-# ZZH: 举报只需要登录（任意角色），不限定学生。
 # Reporting only requires being signed in (any role).
 @router.post("/reports", status_code=201)
 def submit_report(
@@ -260,7 +257,6 @@ def submit_report(
     return create_report(db, user, payload.target_type, payload.target_id, payload.reason)
 
 
-# ZZH: 下面所有 /admin/** 都用 Depends(admin_user)，非管理员直接 403。
 # Every /admin/** route below uses admin_user, so non-admins receive 403.
 @router.get("/admin/overview")
 def get_admin_overview(db: Session = Depends(get_db), admin: User = Depends(admin_user)):

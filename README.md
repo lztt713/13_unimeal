@@ -1,98 +1,128 @@
 # UniMeal Planner
 
-UniMeal Planner is the group project for 159.333 Programming Project. The repository contains a Vue 3 frontend, a FastAPI backend, and the shared MySQL schema.
+UniMeal Planner is the group project for 159.333 Programming Project. It is a
+local full-stack coursework application with a Vue 3 frontend, a FastAPI backend,
+and a shared MySQL database.
 
-## Local setup（一键把数据库 + 后端 + 前端跑起来）
+Software repository: https://github.com/lztt713/13_unimeal
 
-前提：MySQL 服务（`mysql80`）在运行、已装好 Python 和 Node.js（>= 22.18 或 >= 24.12）。
+## Prerequisites
 
-### 第一次：初始化（只跑一次）
+- MySQL 8.0.16 or later, with the MySQL service running
+- The `mysql` command-line client on `PATH`
+- Python 3
+- Node.js `^22.18.0` or `>=24.12.0`, with npm
+
+If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
+`UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
+
+## First-time setup
+
+Clone the repository, open PowerShell in the repository root, and run:
 
 ```powershell
-cd C:\Users\HarryWorld\Desktop\unimeal\13_unimeal
 .\setup.ps1
 ```
 
-`setup.ps1` 会**弹窗问一次 MySQL root 密码**（星号掩码），用来应用数据库脚本
-（建库 + 样例数据 + 张展赫的迁移）并装依赖。之后密码写进本地 `.env`（已被 git 忽略）。
+The script asks for the local MySQL root password, applies the master schema,
+sample data, and current migrations, creates the root `.venv`, installs backend
+dependencies, and runs `npm ci` for the frontend. The password is used only by
+that process and is not written to the repository.
 
-### 以后每次：一键启动
+## Configuration
+
+Configuration and secrets belong in a local `.env` file, which is ignored by
+Git. The supplied `.env.example` contains optional Gemini settings only and does
+not contain a database connection.
+
+The following values are supported:
+
+```dotenv
+DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@127.0.0.1:3306/unimeal_planner?charset=utf8mb4
+TEST_DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@127.0.0.1:3306/unimeal_test?charset=utf8mb4
+SESSION_SECRET=replace-with-a-long-random-value
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_TIMEOUT_SECONDS=30
+```
+
+Gemini is optional. Without a key, the AI Helper uses its deterministic
+database-backed fallback. Never commit `.env` or any credentials.
+
+## Start the application
+
+For later runs, execute this command from the repository root:
 
 ```powershell
-cd C:\Users\HarryWorld\Desktop\unimeal\13_unimeal
 .\run.ps1
 ```
 
-`run.ps1` 直接从 `.env` 读数据库配置（**不再问密码**），自动打开两个窗口：
-后端（8000）+ 前端（5173）。浏览器访问 http://127.0.0.1:5173 即可。
-（如果 `.env` 被删了，脚本才会退回弹窗问密码。）
+If `.env` does not contain `DATABASE_URL`, the script asks for the MySQL root
+password for that run. It starts:
 
-### 跑测试（在 MySQL 上）
+- Frontend: http://127.0.0.1:5173
+- Backend: http://127.0.0.1:8000
+- Health check: http://127.0.0.1:8000/api/health
+- OpenAPI documentation: http://127.0.0.1:8000/docs
 
-```powershell
-cd C:\Users\HarryWorld\Desktop\unimeal\13_unimeal
-.\test.ps1
-```
-
-### 手动方式（不用脚本，3 个终端）
+The services can also be started manually in separate PowerShell terminals:
 
 ```powershell
-# 终端 1：数据库迁移（一次性，需要密码）
-mysql -u root -p < database\migrations\20260919_profile_and_notifications.sql
+# From the repository root
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000 --app-dir unimeal_backend
 
-# 终端 2：后端
-cd unimeal_backend
-python -m uvicorn app.main:app --reload
-
-# 终端 3：前端
+# In a second terminal
 cd unimeal_frontend
 npm run dev
 ```
 
-### 登录演示账号
+## Test and build
 
-`sample_data.sql` 预置的 `student.alice@...` / `contributor.ben@...` / `admin@...`
-是占位 bcrypt 哈希，不是明文 `demo123`，不能直接登录。请用 `POST /api/auth/register`
-注册一个新账号（学生/贡献者）来登录。
-
-## Implemented backend flow
-
-- Authentication: register, login, logout, current-user and profile endpoints with
-  hashed passwords, signed HttpOnly session cookies, and student/contributor/administrator roles
-- Recipe search, detail, create, edit, delete, publication, saved recipes, ratings and comments
-  — recipe actions are scoped to the logged-in user (contributors own their recipes)
-- Weekly meal-plan entry create/update/delete
-- Shopping-list generation with ingredient/unit merging and serving scaling
-- Persisted purchased state and purchase timestamps
-- Budget summary calculated from purchased shopping-list items
-- Dashboard budget, today's dinner, and saved-recipe integration
-- Notifications with reminder deduplication, single/all read endpoints
-- Recipe image upload, equipment/allergen lookup, and required-equipment persistence
-- Profile-aware AI/database recommendations that enforce allergy, budget, dietary,
-  cooking-time, cuisine, ingredient, and kitchen-access constraints
-- Notification cleanup, student-only favourites, and current-budget synchronisation
-- Content reports and administrator overview, management, user/recipe moderation,
-  and ingredient-category management
-
-For an existing database, apply both
-`database/migrations/20260919_profile_and_notifications.sql` and
-`database/migrations/20260923_frontend_equipment_and_allergens.sql`, followed by
-`database/migrations/20260927_allergy_warning_data.sql`. Fresh installs
-can use `setup.ps1`, which applies the schema, sample data, and current migrations.
-
-## Checks（测试 / 构建）
-
-测试跑在 MySQL 上（独立的 `unimeal_test` 库，自动创建、自动清空，不碰开发库）：
+The complete backend suite uses a dedicated `unimeal_test` MySQL database. The
+test setup creates that database when needed and rebuilds its tables between
+tests; it does not modify `unimeal_planner`.
 
 ```powershell
-cd C:\Users\HarryWorld\Desktop\unimeal\13_unimeal
-.\test.ps1      # 运行时弹窗问 MySQL 密码，然后跑 python -m unittest discover -s tests -v
-```
+# From the repository root
+.\test.ps1
 
-张展赫的测试文件：`test_auth.py`、`test_recipe_permissions.py`、`test_notifications_and_admin.py`
-（跑在 MySQL 上）。`test_planning.py` 是梁子豪的，仍用内存 SQLite，可单独跑或跳过。
-
-```powershell
+# Frontend production build
 cd unimeal_frontend
 npm run build
 ```
+
+If `.env` does not contain `TEST_DATABASE_URL`, `test.ps1` asks for the MySQL
+root password and constructs the test connection for that run.
+
+## Main workflows
+
+- Students register, complete their profile, browse and save published recipes,
+  plan weekly meals with serving quantities, generate shopping lists, record
+  purchases, review budgets and dashboard data, and receive reminders.
+- Contributors create, revise, publish, and remove their own recipes.
+- Administrators review overview counts, reports, users, recipes, and ingredient
+  categories. Backend role checks remain authoritative even when the frontend
+  hides an action.
+- Smart Recipe Search parses dietary tags, a maximum price, a maximum cooking
+  time, and an ingredient phrase from the explicit query.
+- Meal Recommendation ranks matching published recipes using saved recipe and
+  cuisine signals, ratings, estimated cost, and cooking time. Gemini may rerank
+  validated candidates when configured; otherwise the database fallback is used.
+
+## Sample data and accounts
+
+`database/sample_data.sql` supplies local demonstration data. Its sample account
+passwords are placeholder hashes, not a documented plaintext password. Register
+a new student or contributor through the application or `POST /api/auth/register`
+when a working login is needed.
+
+For an existing database, review and apply the migration files in
+`database/migrations` in filename order. Back up populated databases before
+applying schema changes.
+
+## Current scope
+
+UniMeal has been verified as a local coursework application, not a production
+deployment. Notifications are request-driven, costs are estimates, Gemini is
+optional, and formal accessibility, cross-browser, performance, concurrency,
+backup, and recovery testing remain outside the current evidence.

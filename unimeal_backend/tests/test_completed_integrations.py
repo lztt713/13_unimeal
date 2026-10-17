@@ -34,7 +34,8 @@ from app.routers.recipes import (
     list_equipment,
 )
 from app.schemas import ProfileUpdate, RecipeCreate
-from app.services.aiRecommendation import _filter_and_rank
+from app.services.aiRecommendation import _rank_database_recipes
+from app.services.query_parser import parse_smart_query
 
 
 @compiles(BigInteger, "sqlite")
@@ -278,13 +279,14 @@ class CompletedIntegrationTest(unittest.TestCase):
             0,
         )
 
-    def test_fallback_ranking_respects_allergy_kitchen_and_query_budget(self):
+    def test_fallback_ranking_respects_explicit_query_constraints(self):
         recipes = [
             {
                 "id": 1,
                 "title": "Safe toast",
                 "cuisine": "European",
                 "estimated_cost": 3.0,
+                "rating": 4.0,
                 "prep_time": 5,
                 "cook_time": 5,
                 "dietary_tags": ["Vegetarian"],
@@ -297,6 +299,7 @@ class CompletedIntegrationTest(unittest.TestCase):
                 "title": "Milk pasta",
                 "cuisine": "Italian",
                 "estimated_cost": 4.0,
+                "rating": 4.0,
                 "prep_time": 5,
                 "cook_time": 10,
                 "dietary_tags": ["Vegetarian"],
@@ -305,17 +308,9 @@ class CompletedIntegrationTest(unittest.TestCase):
                 "required_equipment": [{"name": "Hob"}],
             },
         ]
-        profile = {
-            "weekly_budget": 20.0,
-            "dietary_preferences": ["Vegetarian"],
-            "allergies": ["Dairy"],
-            "cooking_skill": "beginner",
-            "kitchen_access": "limited",
-            "favourite_cuisines": [],
-            "saved_recipe_ids": [],
-        }
-        result = _filter_and_rank(recipes, "vegetarian meals under $5", profile)
-        self.assertEqual([recipe["id"] for recipe in result], [1])
+        constraints = parse_smart_query("vegetarian meals under $5")
+        result = _rank_database_recipes(recipes, constraints, self.user)
+        self.assertEqual([recipe["id"] for recipe in result], [1, 2])
 
     def test_image_type_is_detected_from_bytes(self):
         self.assertEqual(_image_extension(b"\x89PNG\r\n\x1a\nrest"), ".png")

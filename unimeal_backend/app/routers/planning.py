@@ -99,7 +99,7 @@ def _validate_slot(payload: MealPlanEntryWrite, week_start_date: date) -> str:
         raise HTTPException(status_code=400, detail="Planned date must be inside the selected week")
     return meal_type
 
-# LZTT: Get the authenticated student's weekly meal plan. / 获取当前登录学生的周饮食计划。
+# LZTT: Get the authenticated student's weekly meal plan.
 @router.get("/meal-plan", response_model=MealPlanResponse)
 def get_meal_plan(
     week_start: date | None = Query(default=None),
@@ -112,7 +112,7 @@ def get_meal_plan(
     week_start_date = _resolve_week_start(week_start)
     return _plan_response(_find_plan(db, student.user_id, week_start_date), week_start_date)
 
-# LZTT: Create or replace a meal-plan entry. / 新增或替换饮食计划条目。
+# LZTT: Create or replace a meal-plan entry.
 @router.post("/meal-plan/entries", response_model=MealPlanResponse)
 def save_meal_plan_entry(
     payload: MealPlanEntryWrite,
@@ -165,7 +165,7 @@ def save_meal_plan_entry(
 
     return _plan_response(plan, week_start_date)
 
-# LZTT: Update an entry owned by the current student. / 修改当前学生的饮食计划条目。
+# LZTT: Update an entry owned by the current student.
 @router.put("/meal-plan/entries/{entry_id}", response_model=MealPlanResponse)
 def update_meal_plan_entry(
     entry_id: int,
@@ -217,7 +217,7 @@ def update_meal_plan_entry(
     return _plan_response(entry.meal_plan, week_start_date)
 
 
-# LZTT: Delete an entry owned by the current student. / 删除当前学生的饮食计划条目。
+# LZTT: Delete an entry owned by the current student.
 @router.delete("/meal-plan/entries/{entry_id}", response_model=MealPlanResponse)
 def delete_meal_plan_entry(
     entry_id: int,
@@ -243,7 +243,6 @@ def delete_meal_plan_entry(
 
 
 # LZTT: Synchronise an existing shopping list after the meal plan changes.
-# 梁子豪：Meal Plan改变后，同步已经存在的购物清单。
 def _sync_existing_shopping_list(
     db: Session,
     user_id: int,
@@ -264,7 +263,6 @@ def _sync_existing_shopping_list(
 
 
 # LZTT: Supply notification candidates; the notification module owns persistence and deduplication.
-# 梁子豪：提供提醒触发条件；通知模块负责保存和去重。
 def planning_reminder_candidates(
     db: Session, user_id: int, reference_date: date | None = None
 ) -> list[dict[str, str]]:
@@ -538,7 +536,7 @@ def _generate_shopping_list(db: Session, user_id: int, plan: MealPlan | None) ->
     return _shopping_response(shopping_list, plan)
 
 
-# LZTT: Generate and save a shopping list from the weekly plan. / 根据周计划生成并保存购物清单。
+# LZTT: Generate and save a shopping list from the weekly plan.
 @router.post("/shopping-list/generate", response_model=PersistedShoppingListResponse)
 def generate_shopping_list(
     week_start: date | None = Query(default=None),
@@ -549,7 +547,7 @@ def generate_shopping_list(
     return _generate_shopping_list(db, student.user_id, plan)
 
 
-# LZTT: Toggle an item's purchased state for the current student. / 切换当前学生购物项的购买状态。
+# LZTT: Toggle an item's purchased state for the current student.
 @router.patch("/shopping-list/items/{item_id}/purchased", response_model=PersistedShoppingListResponse)
 def toggle_shopping_item(
     item_id: int,
@@ -660,7 +658,7 @@ def budget_summary_for_user(db: Session, user_id: int, reference_date: date | No
     }
 
 
-# LZTT: Calculate the current student's budget and actual spending. / 计算当前学生的预算与实际支出。
+# LZTT: Calculate the current student's budget and actual spending.
 @router.get("/budget-summary", response_model=BudgetSummaryResponse)
 def get_budget_summary(
     db: Session = Depends(get_db),

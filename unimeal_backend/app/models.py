@@ -85,7 +85,6 @@ user_allergies = Table(
 )
 
 
-# ZZH: 食材 ↔ 过敏原关联表（对应 master_schema 的 ingredient_allergens）。
 # Ingredient-to-allergen junction table, e.g. Milk -> Dairy.
 ingredient_allergens = Table(
     "ingredient_allergens",
@@ -340,6 +339,7 @@ class BudgetPeriod(Base):
     __tablename__ = "budget_periods"
 
     budget_period_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    # Delete budget periods when their user is deleted.
     user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     period_start = Column(Date, nullable=False)
     period_end = Column(Date, nullable=False)

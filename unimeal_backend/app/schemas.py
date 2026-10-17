@@ -314,8 +314,6 @@ class BudgetSummaryResponse(BaseModel):
     categories: list[BudgetCategoryResponse] = Field(default_factory=list)
 
 
-# ZZH: 认证/通知/举报/管理员相关的请求响应模型。字段名�? snake_case�?
-# 通过 alias 输出 camelCase，与前端 src/services/api.js 约定一致�?
 # Request/response schemas for auth, notifications, reports and admin. Field
 # names are snake_case with camelCase aliases matching the frontend contract.
 class UserResponse(BaseModel):

@@ -1,7 +1,7 @@
 """Authentication and profile endpoints backed by signed HttpOnly sessions.
 
-张展赫 (Zhang Zhanhe / ZZH): 认证与账户模块。注册/登录/退出/当前用户/Profile。
-通过签名 HttpOnly Cookie 会话实现登录态，密码用 pbkdf2 哈希保存。
+Zhang Zhanhe (ZZH): Registration, login, logout, current-user and profile
+features use signed HttpOnly cookie sessions and PBKDF2 password hashes.
 """
 
 from __future__ import annotations
@@ -26,8 +26,6 @@ from app.schemas import LoginRequest, ProfileUpdate, RegisterRequest, UserRespon
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
-# ZZH: 数据库里存的是枚举值（beginner/intermediate/advanced），
-# 前端下拉框用的是展示名（Beginner/Comfortable/Confident），这里做双向映射。
 # The database stores enum values while the frontend uses display labels,
 # so these two dicts map back and forth.
 COOKING_SKILL_DISPLAY = {
@@ -37,7 +35,6 @@ COOKING_SKILL_DISPLAY = {
 }
 COOKING_SKILL_DB = {value: key for key, value in COOKING_SKILL_DISPLAY.items()}
 
-# ZZH: 厨房条件同理：数据库枚举 ↔ 前端展示名。
 # Kitchen access has the same database-enum ↔ frontend-label mismatch.
 KITCHEN_ACCESS_DISPLAY = {
     "none": "No kitchen",
@@ -104,8 +101,8 @@ def _resolve_allergies(db: Session, names: list[str]) -> list[Allergy]:
 def user_to_response(user: User) -> dict:
     """Serialize a user (and its preference relationships) for the frontend.
 
-    前端需要的字段是 camelCase（displayName/weeklyBudget/...），这里统一返回
-    snake_case 字典，再由 response_model 的 alias 转成 camelCase 输出。
+    The frontend expects camelCase fields. This function returns a snake_case
+    dictionary and the response model aliases convert it to camelCase.
     """
     return {
         "id": int(user.user_id),
@@ -124,8 +121,8 @@ def user_to_response(user: User) -> dict:
 def register_user(db: Session, name: str, email: str, password: str, role: str) -> User:
     """Create a new student or contributor account. Never allows administrator.
 
-    注册业务逻辑（可单独测试）：只允许 student / contributor，禁止自我注册为
-    administrator；邮箱去重；密码用 pbkdf2 哈希后入库。
+    Self-registration is limited to student and contributor roles. Email
+    addresses are unique and passwords are stored as PBKDF2 hashes.
     """
     email = email.strip().lower()
     role = (role or "student").strip().lower()
@@ -157,7 +154,6 @@ def register_user(db: Session, name: str, email: str, password: str, role: str) 
     try:
         db.commit()
     except IntegrityError:
-        # ZZH: 兜底捕获数据库唯一索引冲突，避免并发下重复注册。
         # Fall back to the database unique constraint under concurrent registration.
         db.rollback()
         raise HTTPException(409, "An account with this email already exists") from None
@@ -168,8 +164,8 @@ def register_user(db: Session, name: str, email: str, password: str, role: str) 
 def authenticate_user(db: Session, email: str, password: str) -> User:
     """Return the user when email and password match, otherwise raise 401/403.
 
-    登录校验：邮箱统一小写；密码用 verify_password 校验（兼容 pbkdf2 和 bcrypt）；
-    被停用（is_active=False）的账户返回 403。
+    Email addresses are normalized to lowercase. Password verification accepts
+    PBKDF2 and bcrypt hashes, and suspended accounts receive 403.
     """
     email = email.strip().lower()
     user = db.query(User).filter(User.email == email).first()
@@ -183,8 +179,8 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
 def apply_profile_update(db: Session, user: User, payload: ProfileUpdate) -> dict:
     """Persist a partial profile update and return the refreshed user.
 
-    只更新前端传来的字段（部分更新）；偏好列表（饮食偏好/过敏原）整体替换，
-    展示名（Beginner/...）反向映射回数据库枚举值后保存。
+    Only supplied fields are updated. Preference lists are replaced as a whole,
+    and display labels are mapped back to database enum values before saving.
     """
     resolved_allergies = (
         _resolve_allergies(db, payload.allergies) if payload.allergies is not None else None
@@ -224,7 +220,6 @@ def apply_profile_update(db: Session, user: User, payload: ProfileUpdate) -> dic
     return user_to_response(user)
 
 
-# ZZH: 注册成功后立即签发会话（自动登录），前端随后直接跳转，无需再调 login。
 # Registration also signs the caller in so the frontend can redirect straight away.
 @router.post("/auth/register", response_model=UserResponse, status_code=201)
 def register(payload: RegisterRequest, response: Response, db: Session = Depends(get_db)):
@@ -234,7 +229,6 @@ def register(payload: RegisterRequest, response: Response, db: Session = Depends
     return user_to_response(user)
 
 
-# ZZH: 登录成功后写入 HttpOnly Cookie（set_session），浏览器自动随请求携带。
 # A successful login sets an HttpOnly session cookie carried on later requests.
 @router.post("/auth/login", response_model=UserResponse)
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
@@ -244,7 +238,6 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     return user_to_response(user)
 
 
-# ZZH: 退出时把 token 加入撤销列表并删除客户端 Cookie，旧登录态立刻失效。
 # Logout revokes the token server-side and clears the cookie client-side.
 @router.post("/auth/logout")
 def logout(request: Request, response: Response):
@@ -253,7 +246,6 @@ def logout(request: Request, response: Response):
     return {"message": "Signed out"}
 
 
-# ZZH: 未登录时 get_current_user 直接抛 401，前端 getCurrentUser 据此返回 null。
 # When not signed in this returns 401, which the frontend treats as "logged out".
 @router.get("/auth/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)):
@@ -261,7 +253,6 @@ def me(user: User = Depends(get_current_user)):
     return user_to_response(user)
 
 
-# ZZH: Profile 修改只作用于当前登录用户（get_current_user），无越权风险。
 # Profile edits are scoped to the authenticated user only.
 @router.put("/profile", response_model=UserResponse)
 def update_profile(

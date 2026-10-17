@@ -1,4 +1,4 @@
-"""Authentication, registration and profile tests (runs on MySQL, 张展赫 ZZH)."""
+"""Authentication, registration and profile tests (runs on MySQL, Zhang Zhanhe/ZZH)."""
 
 import unittest
 
