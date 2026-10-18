@@ -6,18 +6,56 @@ and a shared MySQL database.
 
 Software repository: https://github.com/lztt713/13_unimeal
 
-## Start an existing installation
+## First-time setup
 
-Open PowerShell in the repository root and run:
+Follow these steps when downloading UniMeal for the first time.
+
+### 1. Clone the repository
+
+Install Git if it is not already available, then open PowerShell and run:
+
+```powershell
+git clone https://github.com/lztt713/13_unimeal.git
+cd 13_unimeal
+```
+
+All commands below should be run from this repository root unless another
+directory is shown.
+
+### 2. Check the prerequisites
+
+- Git
+- MySQL 8.0.16 or later, with the MySQL service running
+- The `mysql` command-line client on `PATH`
+- Python 3
+- Node.js `^22.18.0` or `>=24.12.0`, with npm
+
+If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
+`UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
+
+### 3. Run the setup script
+
+Run this command once for a fresh checkout:
+
+```powershell
+.\setup.ps1
+```
+
+The script asks for the local MySQL root password, applies the database schema,
+sample data, and migrations, creates the root `.venv`, installs the backend
+dependencies, and runs `npm ci` for the frontend. The password is used only by
+that process and is not written to the repository.
+
+Do not run `setup.ps1` only to restart an existing installation because it
+reapplies the database setup.
+
+### 4. Start the application
+
+After setup finishes, run:
 
 ```powershell
 .\run.ps1
 ```
-
-Use this command for normal starts. You do **not** need to run `setup.ps1`
-again if this checkout already has a working `.venv`, frontend dependencies,
-and database. In particular, a missing system Python on `PATH` does not stop
-`run.ps1` from using the existing `.venv`.
 
 If `.env` does not contain `DATABASE_URL`, the script asks for the MySQL root
 password for that run. Keep the two service windows open, then visit:
@@ -26,6 +64,18 @@ password for that run. Keep the two service windows open, then visit:
 - Backend: http://127.0.0.1:8000
 - Health check: http://127.0.0.1:8000/api/health
 - OpenAPI documentation: http://127.0.0.1:8000/docs
+
+## Start an existing installation
+
+For later starts, open PowerShell in the repository root and run:
+
+```powershell
+.\run.ps1
+```
+
+You do **not** need to run `setup.ps1` again if the checkout already has a
+working `.venv`, frontend dependencies, and database. A missing system Python
+on `PATH` does not stop `run.ps1` from using the existing `.venv`.
 
 The services can also be started manually in separate PowerShell terminals:
 
@@ -50,31 +100,6 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 This setting lasts only for that PowerShell session and its child processes.
 Repeat it in a new window if scripts are blocked again; it does not change the
 user-wide or machine-wide policy. See [Microsoft's execution-policy guide](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies).
-
-## Prerequisites for first-time setup
-
-- MySQL 8.0.16 or later, with the MySQL service running
-- The `mysql` command-line client on `PATH`
-- Python 3
-- Node.js `^22.18.0` or `>=24.12.0`, with npm
-
-If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
-`UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
-
-## First-time setup
-
-Only for a fresh checkout that has not been set up, open PowerShell in the
-repository root and run:
-
-```powershell
-.\setup.ps1
-```
-
-Do not use this command just to restart an existing installation: it reapplies
-the database schema, sample data, and migrations. The script asks for the local
-MySQL root password, creates the root `.venv`, installs backend dependencies,
-and runs `npm ci` for the frontend. The password is used only by that process
-and is not written to the repository.
 
 ## Configuration
 
