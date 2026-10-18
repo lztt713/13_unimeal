@@ -16,6 +16,18 @@ Software repository: https://github.com/lztt713/13_unimeal
 If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
 `UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
 
+If Windows PowerShell reports that script execution is disabled, run the
+following command in the **same PowerShell window** before `setup.ps1`,
+`run.ps1`, or `test.ps1`:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
+
+This setting lasts only for that PowerShell session and its child processes.
+Repeat it in a new window if scripts are blocked again; it does not change the
+user-wide or machine-wide policy. See [Microsoft's execution-policy guide](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies).
+
 ## First-time setup
 
 Clone the repository, open PowerShell in the repository root, and run:
