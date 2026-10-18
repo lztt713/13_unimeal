@@ -6,19 +6,42 @@ and a shared MySQL database.
 
 Software repository: https://github.com/lztt713/13_unimeal
 
-## Prerequisites
+## Start an existing installation
 
-- MySQL 8.0.16 or later, with the MySQL service running
-- The `mysql` command-line client on `PATH`
-- Python 3
-- Node.js `^22.18.0` or `>=24.12.0`, with npm
+Open PowerShell in the repository root and run:
 
-If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
-`UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
+```powershell
+.\run.ps1
+```
 
-If Windows PowerShell reports that script execution is disabled, run the
-following command in the **same PowerShell window** before `setup.ps1`,
-`run.ps1`, or `test.ps1`:
+Use this command for normal starts. You do **not** need to run `setup.ps1`
+again if this checkout already has a working `.venv`, frontend dependencies,
+and database. In particular, a missing system Python on `PATH` does not stop
+`run.ps1` from using the existing `.venv`.
+
+If `.env` does not contain `DATABASE_URL`, the script asks for the MySQL root
+password for that run. Keep the two service windows open, then visit:
+
+- Frontend: http://127.0.0.1:5173
+- Backend: http://127.0.0.1:8000
+- Health check: http://127.0.0.1:8000/api/health
+- OpenAPI documentation: http://127.0.0.1:8000/docs
+
+The services can also be started manually in separate PowerShell terminals:
+
+```powershell
+# From the repository root
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000 --app-dir unimeal_backend
+
+# In a second terminal
+cd unimeal_frontend
+npm run dev
+```
+
+## If PowerShell blocks scripts
+
+Only if PowerShell reports that script execution is disabled, run the following
+command in the **same PowerShell window**, then retry `run.ps1` or `setup.ps1`:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
@@ -28,18 +51,30 @@ This setting lasts only for that PowerShell session and its child processes.
 Repeat it in a new window if scripts are blocked again; it does not change the
 user-wide or machine-wide policy. See [Microsoft's execution-policy guide](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies).
 
+## Prerequisites for first-time setup
+
+- MySQL 8.0.16 or later, with the MySQL service running
+- The `mysql` command-line client on `PATH`
+- Python 3
+- Node.js `^22.18.0` or `>=24.12.0`, with npm
+
+If MySQL or Python is installed outside `PATH`, set `UNIMEAL_MYSQL_EXE` or
+`UNIMEAL_PYTHON_EXE` to the corresponding executable before running setup.
+
 ## First-time setup
 
-Clone the repository, open PowerShell in the repository root, and run:
+Only for a fresh checkout that has not been set up, open PowerShell in the
+repository root and run:
 
 ```powershell
 .\setup.ps1
 ```
 
-The script asks for the local MySQL root password, applies the master schema,
-sample data, and current migrations, creates the root `.venv`, installs backend
-dependencies, and runs `npm ci` for the frontend. The password is used only by
-that process and is not written to the repository.
+Do not use this command just to restart an existing installation: it reapplies
+the database schema, sample data, and migrations. The script asks for the local
+MySQL root password, creates the root `.venv`, installs backend dependencies,
+and runs `npm ci` for the frontend. The password is used only by that process
+and is not written to the repository.
 
 ## Configuration
 
@@ -60,33 +95,6 @@ GEMINI_TIMEOUT_SECONDS=30
 
 Gemini is optional. Without a key, the AI Helper uses its deterministic
 database-backed fallback. Never commit `.env` or any credentials.
-
-## Start the application
-
-For later runs, execute this command from the repository root:
-
-```powershell
-.\run.ps1
-```
-
-If `.env` does not contain `DATABASE_URL`, the script asks for the MySQL root
-password for that run. It starts:
-
-- Frontend: http://127.0.0.1:5173
-- Backend: http://127.0.0.1:8000
-- Health check: http://127.0.0.1:8000/api/health
-- OpenAPI documentation: http://127.0.0.1:8000/docs
-
-The services can also be started manually in separate PowerShell terminals:
-
-```powershell
-# From the repository root
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000 --app-dir unimeal_backend
-
-# In a second terminal
-cd unimeal_frontend
-npm run dev
-```
 
 ## Test and build
 
