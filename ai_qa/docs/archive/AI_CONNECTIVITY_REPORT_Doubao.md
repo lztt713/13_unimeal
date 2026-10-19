@@ -1,5 +1,10 @@
 # Doubao API connectivity verification record
 
+> **Archived evidence:** this record describes the early Doubao/Ark prototype.
+> The final application uses Gemini with a database-backed fallback. For the
+> current check, follow [`ai_qa/README.md`](../../README.md) and run
+> `python ai_qa/healthyCheck.py`.
+
 ## Purpose
 
 Record the local verification of UniMeal's Doubao/Ark model connection. Do not include

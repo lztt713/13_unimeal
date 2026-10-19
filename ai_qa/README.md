@@ -1,40 +1,31 @@
-# AI_qa(AI_Helper) 
-## Change
-* ### unimeal_backend\requirements.txt
-1. pydantic==2.12.5
-2. google-genai==2.22.0
+# AI and QA notes
 
-* ### unimeal_backend\app\schemas.py
+UniMeal's final AI Helper uses Gemini to rerank validated recipe candidates when
+a Gemini API key is available. If Gemini is not configured or is temporarily
+unavailable, the application returns a deterministic database-backed result so
+the main recipe workflow remains usable.
 
-* ### unimeal_frontend\src\views\AiHelperView.vue
-1. Change AI display to Gemini
-2. Change the layout
+## Relevant implementation
 
-* ### unimeal_backend\app\models.py
+- `unimeal_backend/app/routers/aiHelper.py` exposes the AI Helper endpoint.
+- `unimeal_backend/app/services/query_parser.py` extracts explicit constraints.
+- `unimeal_backend/app/services/recipe_service.py` reads eligible recipes.
+- `unimeal_backend/app/services/aiRecommendation.py` handles Gemini and fallback ranking.
+- `unimeal_frontend/src/views/AiHelperView.vue` provides the user interface.
+- `ai_qa/docs/AI_METRICS_BASELINE.md` defines the planned evaluation metrics.
 
-* ### unimeal_backend\app\services\recipe_service.py
+The early Doubao connectivity record is retained only as historical evidence in
+`ai_qa/docs/archive/AI_CONNECTIVITY_REPORT_Doubao.md`.
 
+## Gemini health check
 
-## New file
-* ### unimeal_backend\app\routers\aiHelper.py
-* ### ai_qa\README.md
-* ### ai_qa\healthyCheck.py
-* ### .venv(python 3.13)
-* ### unimeal_backend\app\services\aiRecommendation.py
-* ### unimeal_backend\app\services\query_parser.py
+1. Complete the repository setup described in the root `README.md`.
+2. Add `GEMINI_API_KEY` and, if required, `GEMINI_MODEL` to the local `.env`.
+3. From the repository root, run:
 
-## Start
-* ### python_requirements
-  python 3.13
-  1. open cmd in the 13_unimeal root directoryand type (.\.venv\Scripts\activate) to enter(.venv)
-  2. type following commands in the cmd to install requirements
-    ```python
-        py -m pip install --upgrade pip
-        py -m pip install -r unimeal_backend\requirements.txt
-    ```
---------------------------------------------------------------
-* ### HEALTHY CHECK
-  1. Create a .env in the 13_unimeal root directory
-  2. Fill it in according to .env.example, and also enter your own GEMINI key
-  3. Run ```python ai_qa/healthyCheck.py ```in the 13_unimeal root directory to run the healthy check
---------------------------------------------------------------
+```powershell
+.\.venv\Scripts\python.exe ai_qa\healthyCheck.py
+```
+
+The check must never print or commit the API key. Gemini is optional for normal
+application use because the database-backed fallback does not require a key.

@@ -26,7 +26,7 @@ erDiagram
 
 ## Current status
 
-The API calculates recipe and shopping costs from MySQL ingredient prices. The reference price is separate from the actual price paid on a shopping-list item. The frontend v6 migration adds controlled allergy options and known positive ingredient mappings. Compound products require label review; missing links do not mean allergen-free. See [the database guide](../README.md).
+The API calculates recipe and shopping costs from MySQL ingredient prices. The reference price is separate from the actual price paid on a shopping-list item. The allergy migration adds controlled options and known positive ingredient mappings. Compound products require label review; missing links do not mean allergen-free. See [the database guide](../../README.md).
 
 The allergy-warning migration keeps standard option names and the known links in sync with existing installations. `allergies` and `ingredients` use case-insensitive unique names, with checks against blanks and surrounding spaces. `No known allergies` is represented by no `user_allergies` row, never by an allergy option. Recipe tags are derived from the ingredient links rather than stored separately.
 

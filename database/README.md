@@ -4,7 +4,7 @@
 
 `database/master_schema.sql` is the only schema-definition script for UniMeal Planner. Qichen Hu, Database Architect, maintains it. Propose schema changes with the affected UI/API requirement; do not modify the master script independently.
 
-The logical design is split into readable diagrams in [`ERD.md`](ERD.md).
+The logical design is split into readable diagrams in [`docs/ERD.md`](docs/ERD.md).
 
 ## Local setup
 
@@ -56,9 +56,9 @@ Only confirmed positive ingredient mappings are inserted. Hummus, Vegetable
 Stock and other compound products need label review before assigning allergens;
 an absent mapping is not proof that a recipe is allergen-free.
 
-The backend must expose equipment as `{id, name}`, persist `requiredEquipmentIds`
-through `recipe_equipment`, and return `requiredEquipment` on recipe details.
-SQL changes alone do not implement those endpoints.
+The backend exposes equipment as `{id, name}`, persists `requiredEquipmentIds`
+through `recipe_equipment`, and returns `requiredEquipment` on recipe details.
+The database, ORM models and API contract therefore use the same relationship.
 
 ### Existing database created before the frontend alignment update
 
@@ -75,7 +75,7 @@ The migration is safe to rerun: it adds `recipes.image_url`, `ingredients.estima
 | Rule | Enforced in database | Enforced in API/UI |
 | --- | --- | --- |
 | Email format, uniqueness and active account | `CHECK`, unique key | Normalise email and show a useful message. |
-| Password security | No plaintext field; minimum hash length | Hash with Argon2/bcrypt; never log a password. |
+| Password security | No plaintext field; minimum hash length | Hash new passwords with PBKDF2-SHA256, support legacy bcrypt verification, and never log a password. |
 | Recipe quality | Servings, costs, quantities and ordered steps | Required fields and friendly validation. |
 | Recipe-card data | Image URL, normalised tags, calculated time/rating | Return the agreed camelCase API payload. |
 | Meal calendar | Unique plan/week and meal/date/slot | Ensure dates belong to the selected week. |
@@ -86,9 +86,9 @@ The migration is safe to rerun: it adds `recipes.image_url`, `ingredients.estima
 ## Current integration boundary
 
 The application uses Vue and a FastAPI/SQLAlchemy backend with a MySQL connection.
-Frontend v6 already requests equipment/allergy options and image uploads. The
-new equipment tables still require backend ORM/schema/endpoint integration;
-this database update does not modify Python or Vue source files.
+The frontend requests equipment and allergy options and submits equipment IDs
+with recipe changes. The FastAPI schemas, SQLAlchemy models and recipe endpoints
+implement this contract using `equipment` and `recipe_equipment`.
 
 Keep MySQL normalised and translate database snake_case to the frontend camelCase
 payload. Allergy links express known positive mappings; no link does not certify
